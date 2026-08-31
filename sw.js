@@ -2,7 +2,7 @@
 // 策略：缓存优先（cache-first），启动时预缓存所有静态资源，实现离线可用。
 // 更新机制：修改 CACHE_VERSION 即可强制刷新客户端缓存。
 
-const CACHE_VERSION = 'mj-tools-v1';
+const CACHE_VERSION = 'mj-tools-v2';
 const CORE_ASSETS = [
   './',
   './index.html',
@@ -17,13 +17,13 @@ const CORE_ASSETS = [
   './module-horse.html',
   './module-tools.html',
   './season.html',
-  // 转盘永久音效（music/ 目录）
-  './music/music1.mp3',
-  './music/music2.mp3',
-  './music/music3.mp3',
-  './music/music4.mp3',
-  './music/music5.mp3',
-  './music/music6.mp3',
+  // 转盘永久音效（仓库根目录）
+  './music1.mp3',
+  './music2.mp3',
+  './music3.mp3',
+  './music4.mp3',
+  './music5.mp3',
+  './music6.mp3',
 ];
 
 // 安装：预缓存核心资源
