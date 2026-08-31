@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🀄 麻将赛马 🀄</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Microsoft YaHei', 'PingFang SC', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        h1 {
+            color: #fff;
+            margin: 15px 0 25px;
+            font-size: 2.2em;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        /* 赛道区域 */
+        .race-track {
+            width: 95%;
+            max-width: 950px;
+            background: rgba(255,255,255,0.95);
+            border-radius: 15px;
+            padding: 20px 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+        .track {
+            display: flex;
+            align-items: center;
+            height: 70px;
+            margin: 12px 0;
+            background: #f5f5f5;
+            border-radius: 8px;
+            border: 2px solid #555;
+            position: relative;
+        }
+        .track-name {
+            width: 100px;
+            min-width: 100px;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 17px;
+            font-weight: bold;
+            background: #333;
+            color: #fff;
+            z-index: 5;
+            border-right: 3px solid #555;
+        }
+        .track-lanes {
+            display: flex;
+            flex: 1;
+            height: 100%;
+        }
+        .cell {
+            flex: 1;
+            border-right: 2px dashed #bbb;
+            height: 100%;
+            transition: background-color 0.4s ease;
+        }
+        .cell:last-child {
+            border-right: none;
+            background: #ffd54f;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            color: #e65100;
+            font-size: 13px;
+        }
+
+        /* 走过的格子变色 */
+        .cell.passed {
+            background-color: #a5d6a7;
+        }
+        .cell:last-child.passed {
+            background-color: #ffb74d;
+        }
+
+        /* 麻将棋子 */
+        .horse-wrapper {
+            position: absolute;
+            left: 0;
+            top: 0;
+            height: 100%;
+            width: 100%;
+            pointer-events: none;
+            z-index: 10;
+        }
+        .horse-tile {
+            position: absolute;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 42px;
+            line-height: 1;
+            filter: drop-shadow(2px 3px 4px rgba(0,0,0,0.55));
+            transition: left 0.5s cubic-bezier(0.68, -0.55, 0.27, 1.55);
+            user-select: none;
+        }
+
+        /* 按钮区域 */
+        .controls {
+            display: flex;
+            gap: 15px;
+            margin-top: 30px;
+            flex-wrap: wrap;
+            justify-content: center;
+            align-items: center;
+        }
+        .btn-group {
+            display: flex;
+            gap: 12px;
+            padding: 15px 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+        .btn-group.forward {
+            background: #e8f5e9;
+            border: 2px solid #4caf50;
+        }
+        .btn-group.backward {
+            background: #ffebee;
+            border: 2px solid #f44336;
+        }
+        button {
+            padding: 12px 18px;
+            font-size: 16px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.25s;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .forward button { background: #4caf50; color: white; }
+        .forward button:hover { background: #388e3c; transform: translateY(-2px); }
+        .backward button { background: #f44336; color: white; }
+        .backward button:hover { background: #c62828; transform: translateY(-2px); }
+        button:active { transform: scale(0.95); }
+
+        .reset-btn {
+            background: #2196f3;
+            color: white;
+            padding: 14px 22px;
+            font-size: 16px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.25s;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+        .reset-btn:hover {
+            background: #1976d2;
+            transform: translateY(-2px);
+        }
+
+        /* 胜利动画 */
+        .winner {
+            animation: celebrate 0.5s infinite alternate;
+            filter: drop-shadow(0 0 12px #ff9800);
+        }
+        @keyframes celebrate {
+            from { transform: translate(-50%, -50%) scale(1) rotate(-6deg); }
+            to { transform: translate(-50%, -50%) scale(1.3) rotate(6deg); }
+        }
+    </style>
+</head>
+<body>
+
+    <h1>🀄 麻将赛马 🀄</h1>
+
+    <div class="race-track">
+        <!-- 饼子赛道 -->
+        <div class="track">
+            <div class="track-name">🀙 饼子</div>
+            <div class="track-lanes" id="lanes-bing">
+                <div class="cell"></div><div class="cell"></div><div class="cell"></div>
+                <div class="cell"></div><div class="cell"></div><div class="cell"></div>
+                <div class="cell"></div><div class="cell"></div><div class="cell"></div>
+                <div class="cell">🏁 终点</div>
+            </div>
+            <div class="horse-wrapper">
+                <div class="horse-tile" id="horse-bing">🀙</div>
+            </div>
+        </div>
+        <!-- 万子赛道 -->
+        <div class="track">
+            <div class="track-name">🀇 万子</div>
+            <div class="track-lanes" id="lanes-wan">
+                <div class="cell"></div><div class="cell"></div><div class="cell"></div>
+                <div class="cell"></div><div class="cell"></div><div class="cell"></div>
+                <div class="cell"></div><div class="cell"></div><div class="cell"></div>
+                <div class="cell">🏁 终点</div>
+            </div>
+            <div class="horse-wrapper">
+                <div class="horse-tile" id="horse-wan">🀇</div>
+            </div>
+        </div>
+        <!-- 条子赛道 -->
+        <div class="track">
+            <div class="track-name">🀐 条子</div>
+            <div class="track-lanes" id="lanes-tiao">
+                <div class="cell"></div><div class="cell"></div><div class="cell"></div>
+                <div class="cell"></div><div class="cell"></div><div class="cell"></div>
+                <div class="cell"></div><div class="cell"></div><div class="cell"></div>
+                <div class="cell">🏁 终点</div>
+            </div>
+            <div class="horse-wrapper">
+                <div class="horse-tile" id="horse-tiao">🀐</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 控制按钮 -->
+    <div class="controls">
+        <div class="btn-group forward">
+            <button onclick="move('bing', 1)">🀙 饼子前进</button>
+            <button onclick="move('wan', 1)">🀇 万子前进</button>
+            <button onclick="move('tiao', 1)">🀐 条子前进</button>
+        </div>
+        <button class="reset-btn" onclick="resetRace()">🔄 重置比赛</button>
+        <div class="btn-group backward">
+            <button onclick="move('bing', -1)">🀙 饼子后退</button>
+            <button onclick="move('wan', -1)">🀇 万子后退</button>
+            <button onclick="move('tiao', -1)">🀐 条子后退</button>
+        </div>
+    </div>
+
+    <script>
+        const TOTAL_STEPS = 10;
+        const positions = { bing: 0, wan: 0, tiao: 0 };
+        const maxPositions = { bing: 0, wan: 0, tiao: 0 };
+        let finished = false;
+
+        // 根据 maxPosition 给"已经离开的格子"上色（i < maxPosition，不含当前格）
+        function updateTrackColor(type) {
+            const lanes = document.getElementById(`lanes-${type}`);
+            const cells = lanes.getElementsByClassName('cell');
+            for (let i = 0; i < cells.length; i++) {
+                if (i < maxPositions[type]) {
+                    cells[i].classList.add('passed');
+                }
+            }
+        }
+
+        // 初始化棋子位置（初始在第1格，没有格子变色）
+        ['bing', 'wan', 'tiao'].forEach(type => {
+            const tile = document.getElementById(`horse-${type}`);
+            tile.style.left = '5%';
+        });
+
+        function move(type, step) {
+            if (finished) return;
+
+            positions[type] += step;
+            if (positions[type] < 0) positions[type] = 0;
+            if (positions[type] > TOTAL_STEPS) positions[type] = TOTAL_STEPS;
+
+            // 更新最大步数（只增不减 → 后退不影响颜色）
+            if (positions[type] > maxPositions[type]) {
+                maxPositions[type] = positions[type];
+                updateTrackColor(type);
+            }
+
+            // 移动棋子
+            const tile = document.getElementById(`horse-${type}`);
+            tile.style.left = (5 + positions[type] * 9) + '%';
+
+            // 到达终点
+            if (positions[type] === TOTAL_STEPS) {
+                finished = true;
+                tile.classList.add('winner');
+                const names = { bing: '🀙 饼子', wan: '🀇 万子', tiao: '🀐 条子（幺鸡）' };
+                setTimeout(() => {
+                    alert(`🎉 恭喜 ${names[type]} 率先冲过终点，赢得比赛！`);
+                }, 450);
+            }
+        }
+
+        function resetRace() {
+            positions.bing = 0; positions.wan = 0; positions.tiao = 0;
+            maxPositions.bing = 0; maxPositions.wan = 0; maxPositions.tiao = 0;
+            finished = false;
+            ['bing', 'wan', 'tiao'].forEach(type => {
+                const tile = document.getElementById(`horse-${type}`);
+                tile.classList.remove('winner');
+                tile.style.left = '5%';
+                // 清除所有格子颜色
+                const cells = document.getElementById(`lanes-${type}`).getElementsByClassName('cell');
+                for (let i = 0; i < cells.length; i++) {
+                    cells[i].classList.remove('passed');
+                }
+            });
+        }
+    </script>
+</body>
+</html>

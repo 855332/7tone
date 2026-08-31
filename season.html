@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>赛季积分</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    background: #f0f2f5;
+    color: #333;
+    padding: 10px;
+    max-width: 500px;
+    margin: 0 auto;
+}
+.container {
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    overflow: hidden;
+}
+header {
+    background: linear-gradient(135deg, #43cea2 0%, #185a9d 100%);
+    color: white;
+    padding: 15px;
+    text-align: center;
+}
+header h1 { font-size: 1.25rem; }
+#season-input {
+    display: inline-block;
+    min-width: 35px;
+    text-align: center;
+    border-bottom: 2px dashed rgba(255,255,255,0.7);
+    cursor: text;
+    outline: none;
+    padding: 0 5px;
+    margin: 0 2px;
+    font-style: italic;
+    border-radius: 3px;
+}
+#season-input:focus { background: rgba(255,255,255,0.2); }
+
+/* 玩家卡片 */
+.score-board {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 12px;
+    padding: 15px;
+}
+@media (min-width: 500px) { .score-board { grid-template-columns: 1fr 1fr; } }
+
+.player-card {
+    border-radius: 10px;
+    padding: 12px;
+    position: relative;
+    border: 3px solid transparent;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+}
+.player-card[data-id="1"] { background: #81c784; }
+.player-card[data-id="2"] { background: #e57373; }
+.player-card[data-id="3"] { background: #fff176; }
+.player-card[data-id="4"] { background: #ba68c8; }
+.player-card.is-dealer {
+    border-color: #ffd700;
+    box-shadow: 0 0 14px rgba(255,215,0,0.7);
+}
+.dealer-tag {
+    position: absolute;
+    top: -10px;
+    right: -6px;
+    background: #ffd700;
+    color: #5d4037;
+    font-size: 0.75rem;
+    font-weight: bold;
+    padding: 3px 10px;
+    border-radius: 12px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.25);
+    z-index: 10;
+}
+.player-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+    border-bottom: 1px solid rgba(255,255,255,0.35);
+    padding-bottom: 6px;
+}
+.player-name {
+    font-weight: bold;
+    font-size: 1.1rem;
+    background: rgba(255,255,255,0.35);
+    padding: 2px 8px;
+    border-radius: 6px;
+    cursor: text;
+    outline: none;
+    border: 1px dashed transparent;
+    min-width: 60px;
+    text-align: center;
+    color: #1a1a1a;
+}
+.player-name:focus { border-color: rgba(0,0,0,0.3); background: rgba(255,255,255,0.6); }
+.player-wind {
+    font-weight: bold;
+    font-size: 0.85rem;
+    background: rgba(0,0,0,0.12);
+    padding: 3px 8px;
+    border-radius: 5px;
+    color: #1a1a1a;
+}
+.player-stats {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4px;
+    font-size: 0.78rem;
+    margin-bottom: 10px;
+    color: #1a1a1a;
+}
+.stat-row {
+    display: flex;
+    justify-content: space-between;
+    background: rgba(255,255,255,0.35);
+    padding: 3px 6px;
+    border-radius: 4px;
+    font-weight: 500;
+}
+.player-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+}
+.btn {
+    padding: 9px 5px;
+    border: none;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    font-weight: bold;
+    cursor: pointer;
+    color: white;
+    transition: opacity 0.15s;
+}
+.btn:active { opacity: 0.7; }
+.btn-win { background: #28a745; }
+.btn-mingang { background: #17a2b8; }
+.btn-angang { background: #dc3545; }
+
+/* 统计面板 */
+.stats-panel {
+    padding: 15px;
+    background: #fafafa;
+    border-top: 1px solid #eee;
+}
+.stats-panel h2 {
+    text-align: center;
+    margin-bottom: 12px;
+    color: #444;
+    font-size: 1rem;
+}
+.stats-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 8px;
+}
+@media (min-width: 500px) { .stats-grid { grid-template-columns: 1fr 1fr; } }
+.stat-item {
+    display: flex;
+    justify-content: space-between;
+    background: white;
+    padding: 10px 12px;
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    border-left: 4px solid #4CAF50;
+    font-size: 0.88rem;
+}
+
+/* 重置按钮 */
+.controls {
+    padding: 15px;
+    text-align: center;
+    border-top: 1px solid #eee;
+}
+.btn-reset {
+    background: #f44336;
+    color: white;
+    border: none;
+    padding: 12px 25px;
+    border-radius: 25px;
+    font-size: 1rem;
+    cursor: pointer;
+    width: 100%;
+    max-width: 300px;
+    font-weight: bold;
+}
+.btn-reset:active { background: #d32f2f; }
+</style>
+</head>
+<body>
+<div class="container">
+    <header>
+        <h1>天下第一麻将大赛<span id="season-input" contenteditable="true">S01</span>赛季</h1>
+    </header>
+    <main>
+        <!-- 玩家卡片区域 -->
+        <div class="score-board" id="score-board"></div>
+
+        <!-- 总体统计 -->
+        <div class="stats-panel">
+            <h2>📊 总体数据统计</h2>
+            <div class="stats-grid">
+                <div class="stat-item"><span>总局数：</span><strong id="total-games">0</strong></div>
+                <div class="stat-item"><span>圈数：</span><strong id="round-count">1/4</strong></div>
+                <div class="stat-item"><span>锅数：</span><strong id="pot-count">1</strong></div>
+                <div class="stat-item"><span>当前庄家：</span><strong id="current-dealer">东</strong></div>
+                <div class="stat-item"><span>最大连庄：</span><strong id="max-dealer">无</strong></div>
+                <div class="stat-item"><span>最高连胜：</span><strong id="max-win">无</strong></div>
+                <div class="stat-item"><span>最高连败：</span><strong id="max-lose">无</strong></div>
+            </div>
+        </div>
+
+        <!-- 重置 -->
+        <div class="controls">
+            <button id="reset-btn" class="btn-reset">🔄 重置所有数据</button>
+        </div>
+    </main>
+</div>
+
+<script>
+// ========== 初始数据 ==========
+const defaultPlayers = [
+    { id: 1, name: '东', wins: 0, dC: 0, cD: 0, mCD: 0, cW: 0, mCW: 0, cL: 0, mCL: 0, mG: 0, aG: 0 },
+    { id: 2, name: '南', wins: 0, dC: 0, cD: 0, mCD: 0, cW: 0, mCW: 0, cL: 0, mCL: 0, mG: 0, aG: 0 },
+    { id: 3, name: '西', wins: 0, dC: 0, cD: 0, mCD: 0, cW: 0, mCW: 0, cL: 0, mCL: 0, mG: 0, aG: 0 },
+    { id: 4, name: '北', wins: 0, dC: 0, cD: 0, mCD: 0, cW: 0, mCW: 0, cL: 0, mCL: 0, mG: 0, aG: 0 }
+];
+const winds = ['东','南','西','北'];
+
+// 读取 localStorage（用 mj_score 作为 key）
+let players = JSON.parse(localStorage.getItem('mj_score_players'));
+if (!players || !Array.isArray(players) || players.length !== 4) {
+    players = defaultPlayers.map(p => ({...p}));
+}
+let currD = parseInt(localStorage.getItem('mj_score_currD')) || 1;
+let round = parseInt(localStorage.getItem('mj_score_round')) || 1;
+let pot = parseInt(localStorage.getItem('mj_score_pot')) || 1;
+let games = parseInt(localStorage.getItem('mj_score_games')) || 0;
+
+function save() {
+    localStorage.setItem('mj_score_players', JSON.stringify(players));
+    localStorage.setItem('mj_score_currD', currD);
+    localStorage.setItem('mj_score_round', round);
+    localStorage.setItem('mj_score_pot', pot);
+    localStorage.setItem('mj_score_games', games);
+}
+
+// ========== 渲染玩家卡片 ==========
+function render() {
+    const sb = document.getElementById('score-board');
+    sb.innerHTML = '';
+    players.forEach(p => {
+        const isDealer = (p.id === currD);
+        const div = document.createElement('div');
+        div.className = 'player-card' + (isDealer ? ' is-dealer' : '');
+        div.dataset.id = p.id;
+        div.innerHTML = `
+            ${isDealer ? '<div class="dealer-tag">庄</div>' : ''}
+            <div class="player-header">
+                <div class="player-name" contenteditable="true">${p.name}</div>
+                <div class="player-wind">${winds[p.id-1]}</div>
+            </div>
+            <div class="player-stats">
+                <div class="stat-row"><span>胡牌:</span><strong>${p.wins}</strong></div>
+                <div class="stat-row"><span>坐庄:</span><strong>${p.dC}</strong></div>
+                <div class="stat-row"><span>明杠:</span><strong>${p.mG}</strong></div>
+                <div class="stat-row"><span>暗杠:</span><strong>${p.aG}</strong></div>
+                <div class="stat-row"><span>连胜:</span><strong>${p.cW}</strong></div>
+                <div class="stat-row"><span>连败:</span><strong>${p.cL}</strong></div>
+                <div class="stat-row"><span>最大连胜:</span><strong>${p.mCW}</strong></div>
+                <div class="stat-row"><span>最大连败:</span><strong>${p.mCL}</strong></div>
+            </div>
+            <div class="player-actions">
+                <button class="btn btn-win" data-id="${p.id}">🀄 胡</button>
+                <button class="btn btn-mingang" data-id="${p.id}">明杠</button>
+                <button class="btn btn-angang" data-id="${p.id}">暗杠</button>
+            </div>
+        `;
+        sb.appendChild(div);
+    });
+
+    // 绑定事件
+    document.querySelectorAll('.btn-win').forEach(b => {
+        b.onclick = () => win(parseInt(b.dataset.id));
+    });
+    document.querySelectorAll('.btn-mingang').forEach(b => {
+        b.onclick = () => { players.find(p=>p.id==b.dataset.id).mG++; save(); render(); updStats(); };
+    });
+    document.querySelectorAll('.btn-angang').forEach(b => {
+        b.onclick = () => { players.find(p=>p.id==b.dataset.id).aG++; save(); render(); updStats(); };
+    });
+    document.querySelectorAll('.player-name').forEach(el => {
+        el.onblur = () => {
+            const id = parseInt(el.closest('.player-card').dataset.id);
+            const pl = players.find(p=>p.id===id);
+            pl.name = el.textContent.trim() || winds[id-1];
+            el.textContent = pl.name;
+            save(); updStats();
+        };
+        el.onkeydown = (e) => { if(e.key==='Enter'){ e.preventDefault(); el.blur(); } };
+    });
+}
+
+// ========== 胡牌逻辑 ==========
+function win(id) {
+    games++;
+    const oldDealer = players.find(p=>p.id===currD);
+    if (id === currD) {
+        // 庄家胡 → 连庄
+        oldDealer.wins++; oldDealer.cW++; oldDealer.cL=0; oldDealer.mCW=Math.max(oldDealer.mCW,oldDealer.cW);
+        oldDealer.cD++; oldDealer.dC++; oldDealer.mCD=Math.max(oldDealer.mCD,oldDealer.cD);
+    } else {
+        // 闲家胡 → 下庄，下家上庄
+        const winner = players.find(p=>p.id===id);
+        winner.wins++; winner.cW++; winner.cL=0; winner.mCW=Math.max(winner.mCW,winner.cW);
+        oldDealer.cD = 0;
+        currD = currD % 4 + 1;
+        const nd = players.find(p=>p.id===currD);
+        nd.cD=1; nd.dC++; nd.mCD=Math.max(nd.mCD,nd.cD);
+        // 圈/锅计算：北家下庄后东家上庄 = 新一圈开始
+        if (oldDealer.id===4 && currD===1) { round++; if(round>4){ pot++; round=1; } }
+    }
+    // 其余人连败+1
+    players.forEach(p=>{
+        if(p.id!==id){ p.cL++; p.cW=0; p.mCL=Math.max(p.mCL,p.cL); }
+    });
+    save(); render(); updStats();
+}
+
+// ========== 更新统计面板 ==========
+function updStats() {
+    document.getElementById('total-games').textContent = games;
+    document.getElementById('round-count').textContent = round + '/4';
+    document.getElementById('pot-count').textContent = pot;
+    const cd = players.find(p=>p.id===currD);
+    document.getElementById('current-dealer').textContent = cd ? cd.name : '东';
+    let md={n:'无',c:0}, mw={n:'无',c:0}, ml={n:'无',c:0};
+    players.forEach(p=>{
+        if(p.mCD>md.c) md={n:p.name,c:p.mCD};
+        if(p.mCW>mw.c) mw={n:p.name,c:p.mCW};
+        if(p.mCL>ml.c) ml={n:p.name,c:p.mCL};
+    });
+    document.getElementById('max-dealer').textContent = md.c ? `${md.n}(${md.c})` : '无';
+    document.getElementById('max-win').textContent = mw.c ? `${mw.n}(${mw.c})` : '无';
+    document.getElementById('max-lose').textContent = ml.c ? `${ml.n}(${ml.c})` : '无';
+}
+
+// ========== 重置 ==========
+document.getElementById('reset-btn').onclick = () => {
+    if (confirm('⚠️ 确定重置所有数据？不可恢复！')) {
+        ['mj_score_players','mj_score_currD','mj_score_round','mj_score_pot','mj_score_games'].forEach(k => localStorage.removeItem(k));
+        players = defaultPlayers.map(p=>({...p}));
+        currD=1; round=1; pot=1; games=0;
+        document.getElementById('season-input').textContent = 'S01';
+        render(); updStats();
+        alert('✅ 数据已重置！');
+    }
+};
+
+// 赛季编辑
+document.getElementById('season-input').onblur = function() {
+    let v = this.textContent.trim();
+    if(!v) this.textContent = 'S01';
+};
+
+// ========== 启动 ==========
+render();
+updStats();
+</script>
+</body>
+</html>

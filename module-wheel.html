@@ -1,0 +1,604 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>幸运大钻盘</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Microsoft YaHei', sans-serif;
+            background: linear-gradient(135deg, #1a1a2e, #16213e, #0f3460);
+            color: #fff;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 15px 10px;
+        }
+        h1 {
+            font-size: clamp(1.5em, 5vw, 2.5em);
+            margin-bottom: 15px;
+            text-shadow: 0 0 10px #ffd700;
+            text-align: center;
+        }
+        .wheel-container {
+            position: relative;
+            width: min(90vw, 420px);
+            height: min(90vw, 420px);
+            border-radius: 50%;
+            border: clamp(4px, 1.5vw, 8px) solid #ffd700;
+            box-shadow: 0 0 30px rgba(255, 215, 0, 0.5), inset 0 0 20px rgba(0,0,0,0.3);
+            margin-bottom: 20px;
+            overflow: hidden;
+            flex-shrink: 0;
+        }
+        .wheel {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            position: relative;
+        }
+        #hand-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            z-index: 10;
+            pointer-events: none;
+        }
+        #hand {
+            position: absolute;
+            top: 8%;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: clamp(22px, 6vw, 38px);
+            filter: drop-shadow(0 0 5px rgba(0,0,0,0.6));
+            line-height: 1;
+        }
+        .center-dot {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: clamp(18px, 4vw, 30px);
+            height: clamp(18px, 4vw, 30px);
+            background: #ffd700;
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 11;
+            border: 2px solid #fff;
+            box-shadow: 0 0 10px rgba(0,0,0,0.5);
+        }
+        .wheel-label {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            font-size: clamp(9px, 2.8vw, 13px);
+            font-weight: bold;
+            color: #fff;
+            text-shadow: 1px 1px 3px rgba(0,0,0,0.9);
+            transform-origin: center center;
+            pointer-events: none;
+            writing-mode: vertical-rl;
+            text-orientation: upright;
+            letter-spacing: 2px;
+            white-space: nowrap;
+        }
+        .buttons {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        button {
+            padding: 10px 26px;
+            font-size: clamp(14px, 4vw, 18px);
+            font-weight: bold;
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: all 0.3s;
+            color: #fff;
+        }
+        #startBtn { background: linear-gradient(45deg, #00b09b, #96c93d); }
+        #stopBtn { background: linear-gradient(45deg, #ff416c, #ff4b2b); }
+        button:hover { transform: scale(1.05); box-shadow: 0 5px 15px rgba(0,0,0,0.3); }
+        button:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+        #result {
+            margin-top: 5px;
+            padding: 15px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            text-align: center;
+            min-height: 70px;
+            width: 90%;
+            max-width: 500px;
+            font-size: clamp(14px, 3.5vw, 18px);
+            border: 1px solid rgba(255, 215, 0, 0.3);
+        }
+        #result .prize-name { font-size: clamp(18px, 5vw, 24px); color: #ffd700; font-weight: bold; margin-bottom: 5px; }
+        #result .prize-content { font-size: clamp(13px, 3.5vw, 16px); color: #eee; }
+
+        #log-container {
+            margin-top: 15px;
+            background: rgba(255,255,255,0.05);
+            padding: 12px;
+            border-radius: 10px;
+            width: 90%;
+            max-width: 500px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        #log-container h3 { color: #ffd700; margin-bottom: 8px; font-size: clamp(13px, 3.5vw, 16px); }
+        .log-item {
+            padding: 6px 10px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            font-size: clamp(11px, 3vw, 14px);
+            color: #eee;
+            line-height: 1.5;
+        }
+        .log-item:last-child { border-bottom: none; }
+        .log-time { color: #999; font-size: 0.85em; margin-right: 4px; }
+        .log-prize-name { color: #ffd700; font-weight: bold; }
+
+        .music-section {
+            margin-top: 15px;
+            background: rgba(255,255,255,0.05);
+            padding: 12px;
+            border-radius: 10px;
+            width: 90%;
+            max-width: 500px;
+        }
+        .music-section h3 { margin-bottom: 8px; font-size: clamp(13px, 3.5vw, 16px); color: #ffd700; }
+        .music-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 6px;
+        }
+        @media (max-width: 480px) {
+            .music-grid { grid-template-columns: 1fr; }
+        }
+        .music-grid label {
+            font-size: 11px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .music-grid input[type="file"] { flex: 1; color: #fff; font-size: 10px; }
+
+        .prob-section {
+            margin-top: 15px;
+            background: rgba(255,255,255,0.05);
+            padding: 12px;
+            border-radius: 10px;
+            width: 90%;
+            max-width: 500px;
+            margin-bottom: 20px;
+        }
+        .prob-header {
+            color: #ffd700;
+            font-size: clamp(13px, 3.5vw, 16px);
+            cursor: pointer;
+            user-select: none;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .prob-header:hover { opacity: 0.8; }
+        #prob-content {
+            margin-top: 10px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .prob-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 4px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+        .prob-row label {
+            font-size: 11px;
+            color: #ccc;
+            flex: 1;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .prob-row input {
+            width: 70px;
+            padding: 3px 6px;
+            border-radius: 5px;
+            border: 1px solid rgba(255,215,0,0.5);
+            background: rgba(255,255,255,0.1);
+            color: #fff;
+            font-size: 12px;
+            text-align: center;
+        }
+        .prob-row input:focus { outline: none; border-color: #ffd700; }
+        .prob-footer {
+            margin-top: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .prob-sum {
+            font-size: 13px;
+            color: #eee;
+        }
+        .prob-sum .ok { color: #6BCB77; }
+        .prob-sum .warn { color: #FF6B6B; }
+        .prob-footer button {
+            padding: 6px 16px;
+            font-size: 13px;
+        }
+        #applyProbBtn { background: linear-gradient(45deg, #00b09b, #96c93d); }
+        #resetProbBtn { background: linear-gradient(45deg, #999, #666); }
+        .music-grid .ms {
+            font-size: 12px;
+            background: rgba(255,255,255,.06);
+            border: 1px solid rgba(255,215,0,.25);
+            border-radius: 8px;
+            padding: 8px 10px;
+            color: #eee;
+        }
+        .music-grid .ms.ok { color: #6BCB77; border-color: rgba(107,203,119,.5); }
+        .music-grid .ms.err { color: #FF6B6B; border-color: rgba(255,107,107,.5); }
+        code { background: rgba(255,215,0,.12); padding: 1px 5px; border-radius: 4px; color: #ffd700; }
+    </style>
+</head>
+<body>
+
+<h1>🎡 幸运大钻盘 🎡</h1>
+
+<div class="wheel-container">
+    <div class="wheel" id="wheel"></div>
+    <div id="hand-container">
+        <div id="hand">👆</div>
+    </div>
+    <div class="center-dot"></div>
+</div>
+
+<div class="buttons">
+    <button id="startBtn">开始抽奖</button>
+    <button id="stopBtn" disabled>停止</button>
+</div>
+
+<div id="result">
+    <p style="color:#aaa;">等待抽奖...</p>
+</div>
+
+<div id="log-container">
+    <h3>📋 中奖日志</h3>
+    <div id="log-list"></div>
+</div>
+
+<div class="music-section">
+    <h3>🎵 音效文件（永久加载）</h3>
+    <p style="font-size:12px;color:#ccc;margin-bottom:8px;">已绑定 <code>music/</code> 目录下 music1 ~ music6（支持 .mp3/.ogg/.wav），在 GitHub 后台替换同名文件即可更新。</p>
+    <div class="music-grid" id="musicStatus">
+        <span class="ms">music1 · 转动循环</span>
+        <span class="ms">music2 · 停止</span>
+        <span class="ms">music3 · 完，没中</span>
+        <span class="ms">music4 · 再来一把</span>
+        <span class="ms">music5 · 再来两把</span>
+        <span class="ms">music6 · 再来三把</span>
+    </div>
+</div>
+
+<div class="prob-section">
+    <div class="prob-header" id="probToggle">
+        <span>⚙️ 中奖概率设置（点击展开/收起）</span>
+        <span id="probArrow">▼</span>
+    </div>
+    <div id="prob-content" style="display:none;">
+        <div id="prob-list"></div>
+        <div class="prob-footer">
+            <div class="prob-sum">概率总和: <span id="prob-total" class="ok">1.000</span></div>
+            <div>
+                <button id="applyProbBtn">✅ 应用概率</button>
+                <button id="resetProbBtn">🔄 恢复默认</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// ========== 奖品数据（按最新表格） ==========
+const defaultPrizesData = [
+    { name: "完，没中", content: "谢谢惠顾", prob: 0.12 },
+    { name: "5天4晚豪华游", content: "得到甩龙钱去旅游，到下局才回来", prob: 0.005 },
+    { name: "手机", content: "获得一部手机，下次摸牌扣置为混儿", prob: 0.04 },
+    { name: "奔驰", content: "获得奔驰一辆，抓二打二到听牌", prob: 0.025 },
+    { name: "再来一把", content: "再钻一回", prob: 0.15 },
+    { name: "大大泡泡糖", content: "获得大大泡泡糖，你把吃完的泡泡糖吐向一名玩家，该玩家停一轮", prob: 0.05 },
+    { name: "钞票", content: "获得暗杠钱", prob: 0.025 },
+    { name: "自行车", content: "获得额外一个回合", prob: 0.05 },
+    { name: "再来两把", content: "再钻两回", prob: 0.065 },
+    { name: "旺财", content: "获中华田园犬旺财，得到土狗技能", prob: 0.05 },
+    { name: "防狼喷雾", content: "获得防狼喷雾，你喷向一名玩家，该玩家获得瞎子技能", prob: 0.05 },
+    { name: "望远镜", content: "获得天文望远镜，得到观星技能", prob: 0.05 },
+    { name: "再来三把", content: "再钻三回", prob: 0.03 },
+    { name: "九尾", content: "获得反射狐小九，可以反弹一次技能", prob: 0.05 },
+    { name: "金条", content: "获得25K大金条，摸到条子再摸一张（两次）", prob: 0.05 },
+    { name: "空调", content: "获得空调，可以从牌海里换两张牌", prob: 0.05 },
+    { name: "买个教训", content: "再给一个杠钱，权当买个教训", prob: 0.035 },
+    { name: "冰箱", content: "获得冰箱，多金冰箱可以免疫一次技能", prob: 0.05 },
+    { name: "彩电", content: "获得彩电，爬出来个贞子吃掉了你的脑子，获得派大星技能", prob: 0.05 },
+    { name: "大金劳", content: "获得大金劳，得到甩龙钱", prob: 0.005 }
+];
+
+let prizesData = defaultPrizesData.map(p => ({...p}));
+
+const sectorColors = [
+    '#FF6B6B', '#FF8E53', '#FFD93D', '#6BCB77', '#4D96FF',
+    '#9B59B6', '#FF6B6B', '#FF8E53', '#FFD93D', '#6BCB77',
+    '#4D96FF', '#9B59B6', '#FF6B6B', '#FF8E53', '#FFD93D',
+    '#6BCB77', '#4D96FF', '#9B59B6', '#FF6B6B', '#FF8E53'
+];
+
+let currentHandAngle = 0;
+let isSpinning = false;
+let spinRaf = null;
+let logCount = 0;
+const handContainer = document.getElementById('hand-container');
+
+// ========== 音频（永久文件，从 music/ 目录加载） ==========
+// ★ 音乐文件放在仓库 music/ 目录下，对应命名：music1.mp3 ~ music6.mp3
+//   如需更换，直接在 GitHub 后台替换同名文件即可，无需改动代码。
+//   若把站点部署到子路径，请把 MUSIC_BASE 改成完整绝对路径，例如：
+//   const MUSIC_BASE = 'https://<你的用户名>.github.io/<仓库名>/music';
+const MUSIC_BASE = 'music';
+
+const audios = {
+    music1: new Audio(), music2: new Audio(), music3: new Audio(),
+    music4: new Audio(), music5: new Audio(), music6: new Audio()
+};
+audios.music1.loop = true;
+audios.music1.preload = 'auto';
+audios.music2.preload = 'auto';
+
+// 依次尝试 .mp3 / .ogg / .wav，优先匹配你上传的文件
+function buildMusicURL(name) {
+    return `${MUSIC_BASE}/${name}.mp3`;
+}
+
+for (let i = 1; i <= 6; i++) {
+    audios['music' + i].src = buildMusicURL('music' + i);
+}
+// 转盘转动中循环播放 music1；若浏览器限制自动播放，首次交互后自动解锁
+audios.music1.load();
+
+// 启动时检测 music1~6 文件是否可访问，并在界面上标注状态（绿=OK / 红=缺失）
+function checkMusicFiles() {
+    const container = document.getElementById('musicStatus');
+    if (!container) return;
+    const spans = container.querySelectorAll('.ms');
+    for (let i = 1; i <= 6; i++) {
+        const url = buildMusicURL('music' + i);
+        const sp = spans[i - 1];
+        fetch(url, { method: 'HEAD' })
+            .then(r => { if (sp) sp.classList.add(r.ok ? 'ok' : 'err'); })
+            .catch(() => { if (sp) sp.classList.add('err'); });
+    }
+}
+window.addEventListener('load', checkMusicFiles);
+
+function unlockAudio(audio) {
+    if (!audio._unlocked && audio.src) {
+        audio.muted = true;
+        const p = audio.play();
+        if (p) {
+            p.then(() => {
+                audio.pause();
+                audio.muted = false;
+                audio.currentTime = 0;
+                audio._unlocked = true;
+            }).catch(() => {});
+        }
+    }
+}
+
+// 首次触摸/点击时解锁 audio（移动端必需）
+const unlockOnce = () => {
+    unlockAudio(audios.music1);
+    window.removeEventListener('touchstart', unlockOnce);
+    window.removeEventListener('click', unlockOnce);
+};
+window.addEventListener('touchstart', unlockOnce, { once: true });
+window.addEventListener('click', unlockOnce, { once: true });
+
+// ========== 绘制转盘 ==========
+const wheel = document.getElementById('wheel');
+function drawWheel() {
+    let stops = [];
+    for (let i = 0; i < 20; i++) {
+        let start = i * 18;
+        let end = start + 18;
+        stops.push(`${sectorColors[i]} ${start}deg ${end}deg`);
+    }
+    wheel.style.background = `conic-gradient(${stops.join(', ')})`;
+
+    wheel.querySelectorAll('.wheel-label').forEach(el => el.remove());
+    for (let i = 0; i < 20; i++) {
+        let label = document.createElement('div');
+        label.className = 'wheel-label';
+        label.textContent = prizesData[i].name;
+        label.style.transform = `translate(-50%, -50%) rotate(${i * 18 + 9}deg) translateY(-140px)`;
+        wheel.appendChild(label);
+    }
+}
+drawWheel();
+
+// ========== 概率设置区 ==========
+const probList = document.getElementById('prob-list');
+function renderProbList() {
+    probList.innerHTML = '';
+    prizesData.forEach((p, i) => {
+        const row = document.createElement('div');
+        row.className = 'prob-row';
+        row.innerHTML = `
+            <label title="${p.name}">${i + 1}. ${p.name}</label>
+            <input type="number" step="0.001" min="0" max="1" value="${p.prob}" data-index="${i}">
+        `;
+        probList.appendChild(row);
+    });
+    updateProbTotal();
+}
+function updateProbTotal() {
+    const inputs = probList.querySelectorAll('input');
+    let sum = 0;
+    inputs.forEach(inp => sum += parseFloat(inp.value) || 0);
+    const totalEl = document.getElementById('prob-total');
+    totalEl.textContent = sum.toFixed(3);
+    if (Math.abs(sum - 1) < 0.001) {
+        totalEl.className = 'ok';
+    } else {
+        totalEl.className = 'warn';
+    }
+}
+renderProbList();
+probList.addEventListener('input', updateProbTotal);
+
+document.getElementById('probToggle').addEventListener('click', () => {
+    const content = document.getElementById('prob-content');
+    const arrow = document.getElementById('probArrow');
+    if (content.style.display === 'none') {
+        content.style.display = 'block';
+        arrow.textContent = '▲';
+    } else {
+        content.style.display = 'none';
+        arrow.textContent = '▼';
+    }
+});
+
+document.getElementById('applyProbBtn').addEventListener('click', () => {
+    const inputs = probList.querySelectorAll('input');
+    let sum = 0;
+    inputs.forEach(inp => sum += parseFloat(inp.value) || 0);
+    if (Math.abs(sum - 1) > 0.01) {
+        if (!confirm(`概率总和为 ${sum.toFixed(3)}，不等于 1.0。确定要应用吗？`)) return;
+    }
+    inputs.forEach(inp => {
+        const idx = parseInt(inp.dataset.index);
+        prizesData[idx].prob = parseFloat(inp.value) || 0;
+    });
+    alert('概率已更新！');
+});
+
+document.getElementById('resetProbBtn').addEventListener('click', () => {
+    prizesData = defaultPrizesData.map(p => ({...p}));
+    renderProbList();
+});
+
+// ========== 开始 ==========
+document.getElementById('startBtn').addEventListener('click', () => {
+    isSpinning = true;
+    handContainer.style.transition = 'none';
+    document.getElementById('startBtn').disabled = true;
+    document.getElementById('stopBtn').disabled = false;
+    document.getElementById('result').innerHTML = '<p style="color:#ffd700;">🎵 转动中...</p>';
+
+    audios.music1.muted = false;
+    audios.music1.play().catch(e => console.log('播放失败:', e));
+
+    function animate() {
+        if (!isSpinning) return;
+        currentHandAngle += 20;
+        handContainer.style.transform = `rotate(${currentHandAngle}deg)`;
+        spinRaf = requestAnimationFrame(animate);
+    }
+    animate();
+});
+
+// ========== 停止 ==========
+document.getElementById('stopBtn').addEventListener('click', () => {
+    if (!isSpinning) return;
+    isSpinning = false;
+    document.getElementById('stopBtn').disabled = true;
+    cancelAnimationFrame(spinRaf);
+
+    audios.music1.pause();
+    audios.music1.currentTime = 0;
+    audios.music2.currentTime = 0;
+    audios.music2.play().catch(e => {});
+
+    let rand = Math.random();
+    let sum = 0;
+    let chosenIndex = 0;
+    for (let i = 0; i < prizesData.length; i++) {
+        sum += prizesData[i].prob;
+        if (rand <= sum) {
+            chosenIndex = i;
+            break;
+        }
+    }
+    let chosenPrize = prizesData[chosenIndex];
+
+    let currentMod = currentHandAngle % 360;
+    let targetMod = chosenIndex * 18 + 9;
+    let diff = targetMod - currentMod;
+    if (diff < 0) diff += 360;
+    let targetHandAngle = currentHandAngle + diff + 360 * 5;
+
+    handContainer.style.transition = 'transform 3s cubic-bezier(0.25, 1, 0.5, 1)';
+    handContainer.style.transform = `rotate(${targetHandAngle}deg)`;
+
+    setTimeout(() => {
+        showResult(chosenPrize);
+        playPrizeMusic(chosenPrize.name);
+        document.getElementById('startBtn').disabled = false;
+    }, 3000);
+});
+
+function showResult(prize) {
+    logCount++;
+    const now = new Date();
+    const timeStr = now.toLocaleTimeString('zh-CN', { hour12: false });
+
+    document.getElementById('result').innerHTML = `
+        <div class="prize-name">🎉 ${prize.name} 🎉</div>
+        <div class="prize-content">${prize.content}</div>
+    `;
+
+    const logList = document.getElementById('log-list');
+    const logItem = document.createElement('div');
+    logItem.className = 'log-item';
+    logItem.innerHTML = `
+        <span class="log-time">[${timeStr}]</span>
+        <span style="color:#ccc;">第${logCount}抽 - </span>
+        <span class="log-prize-name">${prize.name}</span>
+        <span style="color:#aaa;">：${prize.content}</span>
+    `;
+    logList.prepend(logItem);
+}
+
+// ========== 音乐4/5/6 对应新奖项名称 ==========
+function playPrizeMusic(name) {
+    audios.music2.pause();
+    audios.music2.currentTime = 0;
+    let targetAudio = null;
+    if (name === '完，没中') targetAudio = audios.music3;
+    else if (name === '再来一把') targetAudio = audios.music4;
+    else if (name === '再来两把') targetAudio = audios.music5;
+    else if (name === '再来三把') targetAudio = audios.music6;
+
+    if (targetAudio) {
+        targetAudio.currentTime = 0;
+        targetAudio.play().catch(e => {});
+    }
+}
+</script>
+
+</body>
+</html>

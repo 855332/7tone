@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>趣味抽卡器 - 词条抽取</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    font-family: 'WenQuanYi Micro Hei', 'Microsoft YaHei', sans-serif;
+    background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+    min-height:100vh; color:#fff; overflow-x:hidden;
+  }
+  .nav {
+    position:fixed; top:0; left:0; right:0; z-index:1000;
+    display:flex; justify-content:center; gap:10px; flex-wrap:wrap;
+    padding:14px 20px; background:rgba(0,0,0,.55);
+    backdrop-filter:blur(12px); border-bottom:1px solid rgba(255,255,255,.08);
+  }
+  .nav button {
+    padding:10px 22px; border:none; border-radius:30px; cursor:pointer;
+    font-size:15px; font-weight:700; color:#fff;
+    background:rgba(255,255,255,.1); transition:all .3s;
+    border:1px solid rgba(255,255,255,.15);
+  }
+  .nav button:hover { background:rgba(255,255,255,.22); transform:translateY(-2px); }
+  .nav button.active { background:linear-gradient(135deg,#667eea,#764ba2); box-shadow:0 4px 15px rgba(102,126,234,.5); }
+  .nav button .tab-name {
+    background:transparent; border:none; outline:none; color:inherit;
+    font:inherit; text-align:center; min-width:40px; cursor:text;
+  }
+  .nav button.active .tab-name { color:#fff; }
+  .section { display:none; padding:100px 20px 40px; max-width:900px; margin:0 auto; animation:fade .5s; }
+  .section.active { display:block; }
+  @keyframes fade { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }
+  h2 { text-align:center; font-size:28px; margin-bottom:30px; background:linear-gradient(90deg,#f093fb,#f5576c,#fda085); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+
+  /* 词条 */
+  .card-display {
+    background:rgba(255,255,255,.06); border-radius:20px; padding:40px 30px;
+    text-align:center; min-height:260px; display:flex; flex-direction:column;
+    align-items:center; justify-content:center;
+    border:1px solid rgba(255,255,255,.1); position:relative; overflow:hidden;
+  }
+  .card-display::before {
+    content:''; position:absolute; inset:0;
+    background:radial-gradient(circle at 50% 50%, rgba(102,126,234,.15), transparent 70%);
+  }
+  .card-number {
+    font-size:18px; color:#a78bfa; margin-bottom:16px; font-weight:700;
+    background:rgba(167,139,250,.15); padding:4px 16px; border-radius:20px;
+  }
+  .card-text {
+    font-size:24px; font-weight:800; line-height:1.8; color:#fff;
+    position:relative; z-index:1; word-break:break-all;
+  }
+  .card-text .title { color:#fbbf24; display:block; font-size:28px; margin-bottom:10px; }
+  .btn-draw {
+    display:block; margin:30px auto 0; padding:16px 60px; font-size:20px; font-weight:800;
+    border:none; border-radius:50px; cursor:pointer; color:#fff;
+    background:linear-gradient(135deg,#667eea,#764ba2);
+    box-shadow:0 6px 25px rgba(102,126,234,.45); transition:all .3s;
+  }
+  .btn-draw:hover:not(:disabled) { transform:scale(1.06); box-shadow:0 8px 35px rgba(102,126,234,.6); }
+  .btn-draw:disabled { opacity:.5; cursor:not-allowed; }
+  .btn-draw.cooldown { background:linear-gradient(135deg,#555,#777); }
+  .progress-bar { margin-top:20px; text-align:center; color:#94a3b8; font-size:14px; }
+  .progress-bar .bar { height:6px; background:rgba(255,255,255,.1); border-radius:3px; margin-top:8px; overflow:hidden; }
+  .progress-bar .fill { height:100%; background:linear-gradient(90deg,#667eea,#764ba2); border-radius:3px; transition:width .3s; }
+
+  .btn-group { display:flex; gap:12px; justify-content:center; flex-wrap:wrap; margin-top:20px; }
+  .btn-small {
+    padding:10px 28px; font-size:15px; font-weight:700; border:none; border-radius:30px;
+    cursor:pointer; color:#fff; background:rgba(255,255,255,.1);
+    border:1px solid rgba(255,255,255,.15); transition:all .3s;
+  }
+  .btn-small:hover { background:rgba(255,255,255,.2); }
+</style>
+</head>
+<body>
+
+<div class="nav">
+  <button class="active" onclick="switchTab('card-east',this)"><input class="tab-name" value="东" onclick="event.stopPropagation()" ondblclick="event.stopPropagation()"></button>
+  <button onclick="switchTab('card-south',this)"><input class="tab-name" value="南" onclick="event.stopPropagation()" ondblclick="event.stopPropagation()"></button>
+  <button onclick="switchTab('card-west',this)"><input class="tab-name" value="西" onclick="event.stopPropagation()" ondblclick="event.stopPropagation()"></button>
+  <button onclick="switchTab('card-north',this)"><input class="tab-name" value="北" onclick="event.stopPropagation()" ondblclick="event.stopPropagation()"></button>
+</div>
+
+<!-- 东 -->
+<div class="section active" id="card-east">
+  <h2>🎴 词条随机抽取 · 东</h2>
+  <div class="card-display" id="cardDisplay_east">
+    <div class="card-number" id="cardNum_east">准备开始</div>
+    <div class="card-text" id="cardText_east">点击下方按钮抽取词条</div>
+  </div>
+  <button class="btn-draw" id="drawBtn_east" onclick="drawCard('east')">🎯 抽取词条</button>
+  <div class="progress-bar">
+    <span id="cardProgress_east">0 / 0</span>
+    <div class="bar"><div class="fill" id="cardFill_east" style="width:0%"></div></div>
+  </div>
+  <div class="btn-group">
+    <button class="btn-small" onclick="resetCards('east')">🔄 重置词条</button>
+  </div>
+</div>
+
+<!-- 南 -->
+<div class="section" id="card-south">
+  <h2>🎴 词条随机抽取 · 南</h2>
+  <div class="card-display" id="cardDisplay_south">
+    <div class="card-number" id="cardNum_south">准备开始</div>
+    <div class="card-text" id="cardText_south">点击下方按钮抽取词条</div>
+  </div>
+  <button class="btn-draw" id="drawBtn_south" onclick="drawCard('south')">🎯 抽取词条</button>
+  <div class="progress-bar">
+    <span id="cardProgress_south">0 / 0</span>
+    <div class="bar"><div class="fill" id="cardFill_south" style="width:0%"></div></div>
+  </div>
+  <div class="btn-group">
+    <button class="btn-small" onclick="resetCards('south')">🔄 重置词条</button>
+  </div>
+</div>
+
+<!-- 西 -->
+<div class="section" id="card-west">
+  <h2>🎴 词条随机抽取 · 西</h2>
+  <div class="card-display" id="cardDisplay_west">
+    <div class="card-number" id="cardNum_west">准备开始</div>
+    <div class="card-text" id="cardText_west">点击下方按钮抽取词条</div>
+  </div>
+  <button class="btn-draw" id="drawBtn_west" onclick="drawCard('west')">🎯 抽取词条</button>
+  <div class="progress-bar">
+    <span id="cardProgress_west">0 / 0</span>
+    <div class="bar"><div class="fill" id="cardFill_west" style="width:0%"></div></div>
+  </div>
+  <div class="btn-group">
+    <button class="btn-small" onclick="resetCards('west')">🔄 重置词条</button>
+  </div>
+</div>
+
+<!-- 北 -->
+<div class="section" id="card-north">
+  <h2>🎴 词条随机抽取 · 北</h2>
+  <div class="card-display" id="cardDisplay_north">
+    <div class="card-number" id="cardNum_north">准备开始</div>
+    <div class="card-text" id="cardText_north">点击下方按钮抽取词条</div>
+  </div>
+  <button class="btn-draw" id="drawBtn_north" onclick="drawCard('north')">🎯 抽取词条</button>
+  <div class="progress-bar">
+    <span id="cardProgress_north">0 / 0</span>
+    <div class="bar"><div class="fill" id="cardFill_north" style="width:0%"></div></div>
+  </div>
+  <div class="btn-group">
+    <button class="btn-small" onclick="resetCards('north')">🔄 重置词条</button>
+  </div>
+</div>
+
+<script>
+// 导航切换
+function switchTab(id, btn) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  document.querySelectorAll('.nav button').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+}
+
+// 双击重命名：将 input 全选并进入编辑，失去焦点或回车后同步更新对应页标题
+function bindTabRename(input, key) {
+  const finish = () => {
+    const name = input.value.trim() || '未命名';
+    input.value = name;
+    const h2 = document.querySelector('#card-' + key + ' h2');
+    if (h2) h2.textContent = '🎴 词条随机抽取 · ' + name;
+  };
+  input.addEventListener('dblclick', () => {
+    input.focus();
+    input.select();
+  });
+  input.addEventListener('blur', finish);
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); input.blur(); }
+  });
+}
+
+document.querySelectorAll('.nav button .tab-name').forEach((input, idx) => {
+  const keys = ['east', 'south', 'west', 'north'];
+  bindTabRename(input, keys[idx]);
+});
+
+// ============ 词条数据 ============
+const cardData = [
+`1【猫】打出圆形牌后，下轮摸二打二，所有小鸟（幺鸡）不能打出，自己留用`,
+`2【土狗】别人打出骨头（条子）时，你要学狗叫；你自己打出骨头（条子）时，必须护食（发出“唔唔”声）`,
+`3【鬊鸟】你的回合摇骰子选定一名玩家赋予鬊鸟debuff（喊出“我也是鬊鸟”，用双手作出鬼脸保持到下个回合，并停一回合），你中该debuff的时候喊出“我是鬊鸟”下回合不能发动技能`,
+`4【派大星】你是一只没有脑子的海星，你说话时要用脑袋发声，歪比巴卜，你%？*因wei㸔不洞$&('规则，（场景牌除外、动物园长优先）唆有の规则✓你无笑@*·￥#+……，`,
+`5【观星】你摸牌时可看两张牌，将其放置在杠前任意位置，观星换入的牌不能用来胡牌`,
+`6【老六】可用手牌中数字6的牌横置在一个玩家面前，该玩家第二次摸到胡张才可胡牌，你可额外再放一张数字6的牌在该玩家面前，则该玩家不能胡包含混儿吊的牌，如果你使用技能后荒庄，则可胡你所听的牌，你个老六`,
+`7【咸鱼】每轮必须喝水水，且该圈牌内不准上厕所。没喝？这把你打出的牌不算，重打！`,
+`8【动物园园长】本局若有其他动物角色在场，每个动物需上交给你2张混儿作为生活费（开局不满2个混儿则后续补齐）`,
+`9【百变怪】开局选定一名对手，复制其角色技能，并全程模仿该对手的所有动作`,
+`10【瞎子】你什么都看不见，但是手感极佳，仅可靠手感摸牌，摸对可翻正，摸错必须打出，胡牌赢双倍`,
+`11【哑巴】小嘴巴！不说话！本局全程只能用手势比划，打得什么牌记得比划一下`,
+`12【鸟王】结算时，手牌中每张鸟牌（幺鸡）都算一个暗杠（庄不翻倍）`,
+`13【女巫的毒药】开局前在备忘录写一张牌作为毒药。若胡牌者牌中有此牌，则被毒倒，由你替他收钱`,
+`14【鸡王】抓过幺鸡（一条）的玩家即成为你的小弟。小弟胡牌时，需与你分享奖金`,
+`15【愣子】全程亮牌打，胡牌赢双倍`,
+`16【匪兵甲】其他玩家打出牌时，你可用手牌换取该牌。发动技能后需修整一轮（跳过轮次）`,
+`17【流氓头子】出牌阶段，可与任意一名玩家交换手牌，每局限用一次。本局可随意下场看其他玩家手牌`,
+`18【花猪】为其他家各选一个花色（混儿以外的花色），有该花色不能胡`,
+`19【UNO】开局只抓8张牌，且混儿为普通牌，你的回合不摸牌，根据上家打的牌出牌，可打出一张同花色/同数字/同牌面的牌，如果没有可打牌则摸一张后结束回合，若该牌可出则立即打出，每次仅剩一张手牌时需喊UNO（不受禁言影响），未喊则下次不能出牌，字牌为转向牌，不受上家牌面约束且不可作为最后一张出，打出后大家逆向摸牌，胡牌算双混五`,
+`20【报告老师】我要告发熹贵妃秽乱后宫罪不容诛，全程需举一只手（胳膊肘悬空），其他玩家打出条/万时举左手，打出饼/字牌时举右手`,
+`21【未成年】可以胡提溜和混吊，不会刮大风，输牌不给钱（压岁钱在爸妈那存着呢，没钱！）`,
+`22【寄生虫】开局前在备忘录选定一名玩家寄生。该玩家胡牌时，双方平分奖金`,
+`23【点歌姬】全员可点歌，你必须唱全。直播间可收礼物，唱歌完毕后说出“大哥对我比个心，一定帅气又多金！”所有人给你一个杠钱`,
+`24【贿赂】可与一名玩家交换两张手牌，双方利益共享`,
+`25【逛三园】碰牌时可发起“逛三园”活动。其他玩家失败时，你可挑选对方一张手牌与之交换；自己失败时，需弃任意两张手牌，后续轮次补齐`,
+`26【阿衰】输牌不用给钱。若连续5局以上未胡，本局胡牌则本局与下局均可赢双倍`,
+`27【刮大风】龙卷风来袭，全员被卷走，重新分配座位。座位永久变更，并继承该座位的筹码`,
+`28【皇帝的新衣】在你吃/碰/杠/听时，即穿上“新衣”成为皇帝，全场须听你指挥。其他玩家吃/碰/杠/听后，可无视你的指挥。当所有玩家都无视过你的指挥后，你被扒下“新衣”须听全场指挥`,
+`29【大馋丫头/小子】我不饿！但是我就想吃！可吃任意玩家的牌，且吃牌优先于碰、杠、胡`,
+`30【吗喽】随性的你可以从牌堆任意位置抓牌，抓来的好东西（混儿）必须亮着，海底捞月胡牌时赢双倍`,
+`31【流水席】本局所有人都可以吃牌，且你可以吃所有玩家打出的牌，你吃牌时多一回合，被吃碰杠时多余回合保留一轮`,
+`32【小钻风】“此路是我开，此树是我栽，要想打此过，留下买路财！” 你吃/碰/杠任意玩家的牌时，向来源处打劫一份暗杠钱`,
+`33【三三禁手】手牌中有3饼/3条/3万时，禁止吃/碰/杠牌`,
+`34【财神爷】开局指定一名玩家为财神爷。本局中该玩家摸到的所有混儿必须交给你；作为交换，财神爷可从你手牌中挑选同等数量的牌拿走`,
+`35【汪汪】对家每轮打出牌时，你需根据该牌说一句吉祥话。因为你说了吉祥话，对家胡牌时不但不收你钱，还要给你一份杠钱作为喜钱`,
+`36【疯子】疯子与天才就在一念之间，有着天才大脑的你从来不会调整码牌顺序，且在你眼中所有牌面数字均视为下调一位（1变9，2变1，以此类推），胡牌赢双倍`,
+`37【强迫症】坐姿端正。自己打出的牌码齐，别人打出的牌码齐，手牌也码齐，一切都要整齐！其他玩家都要给你一个杠钱作为清洁费`,
+`38【美人鱼】摸牌时，可用一张圆形手牌（筒子）从牌海中换一张圆形牌入手`,
+`39【二五八将】普通刮大风已无法满足你了，本局你玩二五八将：混儿视为普通牌，将牌必须为二、五、八（万/筒/条）。胡牌赢三倍`,
+`40【反射狐】反弹所有对你的技能（场景牌除外），除动物园园长外没人管得了你`,
+`41【禁言长老】指定一名玩家后，全场禁止出声。你拥有三次机会，可指定任意一名玩家跳过其回合`,
+`42【又双叒叕】连续四局，你均可胡七小对（龙牌钱，可胡本混七小对等）`,
+`43【乌眼青】全程需捂住一只眼打牌。（昨晚澡堂子的事别提了，眼都打青了 😵）`,
+`44【敲7】其他玩家打出含7的牌（如7万/7条/7筒）时，你必须敲一下桌子。你说话时，所有带“7”的字需用敲桌子代替。失误则跳过下轮`,
+`45【呱呱乐】任意玩家吃/碰/杠时，你可从牌库任意未亮明位置暗抓一张牌，扣放于桌面（不入手牌）。结算时，扣放牌中每有一张胡家手牌没有的，全场每人给你一份杠钱`,
+`46【混子】若本局混儿为数字牌，则该数字的前后混儿变为该数字所有花色牌（条/饼/万）为混儿；初始混儿花色的龙为本混龙。若本局混儿为字牌，则所有字牌均为混儿（若9张字牌全为混儿，也可胡本混龙）`,
+`47【骨骼惊奇】你天生骨骼惊奇，根骨绝佳，全程单臂绕至脑后，从另一侧扣住嘴角打牌，看你不容易，赢牌时额外多赢一份暗杠钱（庄翻倍）`,
+`48【总钻风】你吃/碰/杠时喊出台词“大王叫我来巡山呀~咿儿呦咿儿咿儿哟~” ，全场每人给你一份杠钱；若场上有小钻风，他需额外多给你一份`,
+`49【师父】吃碰杠牌时，需大喊“告诉俺师傅，俺不是孬种！”，额外抽取一个技能（吃碰杠都可以发动一次）`,
+`50【黑魔法咒】本局可额外多5个回合。你回合打出牌后，说出咒语并做动作：“古娜拉黑暗之神-呜呼拉呼-黑魔变身！变！变！变！”，即可开始新的一个回合（可连续施法）。其他玩家执行吃、碰、杠时，将强行打断你的施法`,
+`51【巴啦啦小魔仙】其他玩家执行吃/碰/杠时，你必须说出咒语并做动作：“巴啦啦能量-沙罗沙罗-小魔仙-全身变！变！变！变！”。下轮摸二打二（同一轮次不叠加，但每次均需念咒）`,
+`52【杠精】你是个杠精，别人的杠你不用给钱，你的杠钱翻倍`,
+`53【平头哥】好战的你要打三个！还！有！谁！你可以胡其他家的牌（点炮），三家给钱（点炮的是庄时，所有人双倍），其他三家胡牌时，你给每家一份（胡的是庄时你给所有人双倍）`,
+`54【低保】钱最少时，每人给你一个捉五钱作为低保；有钱时，输钱少给一份杠钱（庄翻倍）；钱最多时，那么恭喜你……恭喜……`,
+`55【彩票】开局前，每人拿出一个甩本钱放入奖池，并从“中发白”中按顺序选择四个字+一个风头字发至群内，每人凑齐5个字，抽选号码开奖（中奖概率倍高：技能发动人一旦中奖则按上升一级奖品领取），<奖项（按级优先）> 一等奖（3+1全中）：独吞全部奖金，获【洪福齐天】buff；二等奖（2+1中）：得3/4奖金；三等奖（3+0中）：得1/2奖金；四等奖（0中）：得1/4奖金；五等奖（2中）：得1/8奖金；奖金有剩余则全员平分。【洪福齐天】：中发白依次作为你接下来3局的额外混儿；第4局你所坐风位为额外混儿`,
+`56【收废品】摸到字牌时，可用一张手牌（不可被吃碰杠）从牌海换一张字牌。本局手牌中须有字牌才能胡。每凑成一副字牌（三张相同），胡牌时额外多算一份杠钱（庄翻倍）`,
+`57【卖废品】开局可将手牌中所有字牌弃掉（混儿除外），从牌堆补同等数量的牌。手牌中有字牌时不能胡（混儿除外）`,
+`58【纪律委员】全程监督他人。有人违规（说脏话/打哈欠/提前摸牌），你选择一张与违规者随机交换一张手牌。你偶尔违规时，其他人不敢告发（豁免）。但【报告老师】可举手告发你，并选一张从你处随机交换一张手牌`,
+`59【乞丐】可胡十三幺或十三不靠* 十三幺：一万/九万、一条/九条、一筒/九筒 + 所有字牌，外加其中一张重复（作将）；十三不靠：万、条、筒各选一组数字（147、258或369），搭配字牌，凑成14张互不重复的牌；以上牌型均算甩龙，无混儿时翻倍`,
+`60【赌徒】可以放弃本回合行动，猜一名对手手牌中一张牌的花色。猜中则本局你每轮永久多一个额外回合；其他玩家碰、吃、杠你打出的牌时，跳过你的额外回合`,
+`61【男生女生向前冲】你的回合可指定一名玩家比赛（如比大小，自拟）。胜则丢弃一张手牌；败则跳过下轮。连胜时，每次需丢弃的手牌数+1。手牌全部清空后获胜，获得【大冰箱】（赢取一份甩龙的钱）`,
+`62【木偶师】开局全员打开微信并调至静音。你选1名玩家为“木偶”，选2名玩家为“观察者”，通过私信分配身份，并私信告知木偶一个限定动作（如：他人打字牌时学猩猩）。全程未触发动作则木偶失败。局末，两名观察者猜测木偶玩家：* 全猜对：你和木偶给观察者一份杠钱。* 有猜错：猜错者交出一份暗杠钱，由你和木偶平分。自爆身份方直接算负双倍结算`,
+`63【色狼】出牌阶段，选一张手牌指定一名玩家猜其花色（条/饼/万/字）。* 猜错：该玩家在你下次摸牌前，禁止碰/杠/吃。* 累计三次猜错：该玩家下次摸牌阶段不能胡牌。* 猜对：跳过你下轮`,
+`64【拿来吧你】可以放弃摸牌，改为抽取一名玩家的一张手牌。被抽玩家下轮只抓不打。不可对同一玩家连续发动三次，且不可对听牌玩家发动。整局中被你抽牌次数最多的玩家胡牌时，你需付其双倍`,
+`65【小陀螺】抓到数字为5的牌时，若不打出该牌，需当场转五圈（打出则无事发生）。胡牌时，按手牌中数字为5的牌数量×10，转出对应圈数`,
+`66【凤兰儿】本局只能胡对对胡（照龙牌钱算，可胡本混七小对等）。全程双手保持兰花指`,
+`67【东施效颦】当你打出与上家相同的牌时，可用一张手牌与下家随机交换一张手牌。若下家已听牌，则目标顺延至下下家（再听则继续顺延）`,
+`68【快手】本局你胡牌时，未听牌的玩家需付双倍`,
+`69【闯红灯】两轮之间，其他玩家打出的牌中红色多于绿色时，你可闯可红灯（摸二打二）；绿色多于红色时，你怕被撞，需要等个绿灯（跳过下轮）`,
+`70【脱胎换骨】你的回合可换任意张手牌，从杠前牌堆倒序拿牌替换，每局限用两次`,
+`71【地下党】其他人吃/碰/杠后你禁止说话。你吃/碰/杠后恢复，每违规说话一次，需向所有玩家各赔一份暗杠钱`,
+`72【五谷风登】手中有五张字牌并亮出，则接下来5轮摸二打二，该字牌全部打出后可重新发动技能`,
+`73【毒圈】听牌后（不得更改），摸到的废牌（非有效进张）可扣放桌面保留，每凑齐四张算一个杠`,
+`74【通讯录】本局混儿视为普通牌。你凑齐自己的电话号码牌型（同一花色=甩本，两种花色=甩龙，三种花色=龙）即可胡牌，中发白为0。若你凑齐了某玩家的电话号码牌型，该玩家需按你的牌型付双倍，其余玩家不给钱`,
+`75【逆天改命】你第一次吃/碰/杠时，若全场无人听牌，可重新由你定混儿`,
+`76【扫雷】摸到字牌时，将该字牌置于一旁作为“雷”，并补摸一张牌。* 字混处理：若摸到的字牌恰为混儿，则用一张手牌代替该字牌作为雷（字牌亮出，雷的种类等同该字牌）。* 消耗：可用两个相同的雷，换取一次额外回合。* 爆炸：集齐5个不同种类的雷时爆炸。爆炸后本局禁止胡牌，且每个雷需向全场每人赔付一份杠钱（庄不翻倍）`,
+`77【睡鼠】摸牌阶段会多偷一张（抓二打一），但是贪睡的你抓牌后都会睡一回合（只打不抓），睡觉期间免疫技能，全程禁止吃/碰/杠，用摸到的第一张牌胡牌正常算钱，用第二张牌（偷的）胡牌金额减半（按顺序胡牌，同时胡牌不叠加）`,
+`78【撒币】他来了他来了，他带着礼物走来了～ 大佬不差钱，本局所有金额翻倍结算，遇到【点歌姬】时礼物翻4倍`,
+`79【哆啦C梦】场上每打出一张字牌，需收回一根手指不能用。当双手仅剩双拳时，胡牌翻倍`,
+`80【貔貅】因为没有xx，只进不出（只抓不打）`,
+`81【进击的滕滕】你召唤了进击的滕滕，从你的第二张混儿开始，都要给滕姓玩家，滕姓玩家碰吃杠后你下一轮改为抓二打二，滕姓玩家胡牌时你和其平分奖金`,
+`82【龙珠】开局前你在一到九中随机选三个数，可以同时作为10，11，12，你可以组成1至12的龙牌，胡该龙牌时胡该龙牌型的双倍，并可以召唤神龙，许愿选择2个技能，作为下轮的技能使用`,
+`83【Lowbee】若你为本局钱最少的玩家：你的明杠、暗杠，其他玩家付钱翻倍；你胡牌时，若牌型小于甩龙，一律按甩龙金额结算`,
+`84【豪猪】其他玩家以任何方式获得你的牌时（无论是你打出的牌，还是从你手牌中抽走的牌），你可随机弃掉该玩家一张手牌`,
+`85【转转回收】你用手牌，回收其他玩家各一张手牌（不得有字牌），你胡牌时仍有该牌的话，该玩家需要用一个暗杠钱买回该牌`,
+`86【猪】开局多摸6张，从中弃6张置于杠前，且不可天胡。牌局开始后，每打出一张牌算过一个月；累计打出12张（十二月）仍未胡牌，则触发“杀年猪”：你需进行赔付——若你已听牌，按你手牌所听最大牌型赔；若未听牌，按其余玩家手牌所听最大牌型赔。`,
+`87【毒药】本局你可向井里投毒3次，每次间隔至少2轮。投毒方式：你扣放一张牌打出，并随意报一个牌名。猜真假：猜错的玩家喝毒药。若本局结束仍有剩余毒药未投出，剩下的毒药由你喝（毒药自备）`,
+`88【吸螺】你凭着你精湛的吃螺蛳技术名噪一时，人送外号吸螺，听说今年你都参加世界杯了，口技一绝的你，手上的技术也不赖，你的回合将两张牌组成一个两张牌宽的球门，在两个牌库之间的距离射门，不碰门柱的情况下将牌射进门，可用手牌换回牌海中一张牌`,
+`89【迪迦】“你相信光吗？”开局不抓牌，每回合只摸不打。碰牌后必须打出一张。手牌满8张时，高举该牌大喊“迪迦！站起来！”完成变身；<变身后>： 每轮摸4张，打出多余牌（保持13张）。你打出的牌，其他玩家不能吃/碰/杠。胡牌时，从本轮摸的4张牌中胡能胡的最大牌型`,
+`90【鹈鹕】可吃牌。吃牌时，可以从场上明牌区（已碰/吃/明杠的牌）中取一张，并弃掉一张手牌。被其他玩家碰/吃/杠你的牌时，你需弃两张手牌，并从牌库补两张。手牌中有鸟牌（幺鸡）时，结算金额翻倍`,
+`91【中介】开局私下选定两名玩家作为买卖双方。结算时，若两人手牌中数量最多的花色相同，则销售成功，二人各付你一份龙钱作为中介费`,
+`92【血战到底】“一个字就是干！” 本局带点炮：其他玩家只能点对家炮，你可胡三家点炮。有人胡牌后继续打牌，直至只剩一家未胡。最后未胡者需额外付给你（胡牌者）你所胡牌型的筹码。若你全程未胡（即成为最后未胡者），需额外赔付三家，按三家胡牌型中最小牌型结算`,
+`93【掌控混儿的神】开局前所有牌倒置，明牌打，你可以额外选一张牌面作为你的混儿。骰子掷出的混儿牌扣置于你手旁，由你掌控（不可改变其用途）`,
+`94【宝贝袈裟】你们四人来到观音禅院，四人分饰唐僧、悟空、金池、黑熊，争夺锦襕袈裟（软件）。每当发生吃/碰/明杠时，从打出该牌的玩家开始，按顺时针方向每人可抢夺一次他人的袈裟。结算时持有袈裟的玩家，其他每人需付一份捉五钱`,
+`95【武大】结算时，手牌每有5张饼子（2舍3入），减免一个杠钱/多胡一个杠钱（庄翻倍）`,
+`96【比奇堡居民】你没有技能，但是能选择一个玩家变成海鲜和你一起在比奇堡，你俩都没技能`,
+`97【养鸡场】你可以胡小鸡抱蛋牌型，牌中有两只幺鸡+7张饼子（蛋）起胡，结算时按照一盒12个饼子（蛋）数量结算，一盒蛋一个杠钱，不满一盒不算钱，手里保留两只幺鸡，多余幺鸡一只一个杠钱，混儿做的幺鸡不算钱（吃碰杠后的牌不能结算蛋，本混儿翻倍）`,
+`98【后妈茶话会】开局为每名其他玩家（公主）指定一张毒苹果。公主胡牌时，若手牌中含毒苹果，则中毒睡着（胡牌无效），并跳过后续所有回合。当全员中毒时，你按当前听牌胡牌；若你未听牌，则算流局`,
+`99【乘法表】手牌中的副须符合九九乘法算式（如2、4、8，即2×4=8；结果为两位数时只保留个位），且为同花色，字牌不可作为数字0。胡牌按龙牌结算，可胡除捉五外的所有龙牌`,
+`100【玲珑塔】玲珑塔塔玲珑，玲珑宝塔好多层~ 报听后的下轮若未胡，须用手牌逐层搭建13层玲珑塔，搭塔期间跳过你的轮次。塔满13层后起胡，可恢复摸牌继续搭塔（只抓不打），去除13张每多两张多一个捉五钱`,
+`101【偷窥狂】其他玩家摸牌时，若你偷看到其牌面，可报出该牌。猜对后可用一张手牌将其换入手牌`,
+`102【蚊子】说出咒语：“嗡嗡嗡嗡嗡嗡嗡嗡嗡……我闻到了XX的臭味”，标记一名玩家。被标记者若3轮内打出风牌，蚊子被吹飞（标记失效）；若3轮内未打出风牌，则蚊子可从其手牌中随机吸走一张，并扣放一张手牌作为虫卵。结算时，每只虫卵（蚊子）向全场每人吸一份杠钱`,
+`103【四象之力】根据你所在方位获得对应四象之力；碰其他风牌时，可额外获得该风对应的四象之力。* 东（青龙）：可从牌库任意位置抓牌；* 南（朱雀）：选一张手牌扣放，作为额外混儿使用。每局限用1次；* 西（白虎）：可从其他玩家的碰、吃、明杠牌中，换走一张牌。每局限用2次；* 北（玄武）：抵挡3次针对你的技能。  集齐全部四种四象之力即为胡牌，按龙牌四倍计算`,
+`104【宝宝巴士】“宝宝巴士来了~” 你每回合摸二打二。其他玩家可在自己回合买票上车：支付1个杠钱，并掷一次骰子。最大值决定乘车回合数（期间该玩家每回合也摸二打二）；最小值若为偶数，则逃票成功，车费免付，你听牌后自动下车，其他玩家在车上听牌则坐过站，需要到站后下车才能胡`,
+`105【半仙儿】摸牌时若猜对花色，将该牌扣放作为额外混儿。这张混儿牌可被其他玩家直接吃、碰、杠（优先于其他操作）`,
+`106【小广告】其他玩家打出条牌时，你脸上需贴一张纸条，纸条保留至下一位玩家打出条子并贴条后`,
+`107【雪崩】你每个回合结束时，从牌库中拿一张牌作为“雪花”闲置一旁，若“雪花”中可凑成一副则发动雪崩，其他玩家进行比大小，点数最大的玩家可逃出雪崩，将“雪花”扣置平均分给其余玩家（平均不开的话点数最小的兜底），置换其手牌`,
+`108【死亡缠绕】其他玩家摸牌前，必须与你猜拳（石头剪刀布），你赢则对方跳过该回合`,
+`109【体育老师】你胡牌时，其他玩家需从以下三项中任选一项完成：5个开合跳、3个蹲起、7个大象鼻子转圈`,
+`110【歪？！110吗】白板作0，手牌中110、112、114、122、119、120均可当一副牌。凑齐其中三副，即算龙牌`,
+`111【细狗】你本不能胡牌。当手牌中条子（不含幺鸡，下同）≤4张时，变身细狗，解锁胡牌。胡牌时若手牌只有一张条子，按手牌花色种类结算：1种花色2倍，2种3倍，3种4倍。你的龙牌须改称“狗牌”，叫错则胡牌无效，继续打牌。混儿为条子时算你倒霉`,
+`112【语文老师】摸牌后可额外判定，判定为文字牌，则可获得该牌并继续判定，回合结束挨张打出多余手牌，若被吃/碰/杠，则直接打断，你有多余手牌时不可胡牌`,
+`113【泡泡糖】你有一块泡泡糖，你的回合摸牌前吹泡泡，投5个骰子猜一个数，连续成功3次则将此次摸的牌扣置作为混儿，不中断每多猜中2次，可多拿一个扣置混儿，猜错则泡泡糖糊一脸，从海里拿一张牌放置一旁作为粘人的泡泡糖，被粘期间不能吃/碰/杠/胡，每回合骰子判定（5个骰子），投到6则把泡泡糖投骰子随机甩给一个人（可甩给自己），以此类推`,
+`114【数学老师】你给其他三名学生布置作业，每位学生须用6张牌组成一组算式，例如：7×9=63，风牌作×，中发白为0或=，未完成作业不能胡牌（该算式的数字牌一致时，该6张牌可作为同花色龙牌的一部分）`,
+`115【囚徒】结算时，和赢家玩囚徒游戏，各自选择是否平分奖励，若均选择平分，则双方平分奖金，若只有一人选独吞，则独吞者获得奖金，若全部选择独吞，则由其他两家平分奖金`,
+`116【赌马】你自万/饼/条三匹马中选择一匹押注（捉五起捉五加），赛道：10格，马根据其他玩家打出牌花色前进，根据你打出花色后退，最先到达或最接近者获胜，中注则其他玩家分摊给你，未中则将注金平分给其他玩家`,
+`117【黄金万两】黄金万两，多摸一两，摸到万子时多一个回合，打出的牌被吃碰杠胡时被打断`,
+`118【π】凑成3.1415926及一副+将则可胡甩龙，一饼为点`,
+`119【拖油瓶】其他玩家的上家为拖油瓶，上家听牌才能胡`,
+`120【小护士】其他玩家有负面效果可以找你打一针，给你一个杠钱免疫一次，或一个暗杠钱免疫一个技能一局，你每弃置3张牌可以免疫一个技能一局`,
+`121【天才】从混儿前拿6张牌，记住牌面与顺序，结算时全部记对则多胡/减免一个双混五`,
+`122【路亚小猫】你摸牌前可以用一张数字牌作为鱼饵在牌海中钓鱼，钓走和该数字组成10的数字牌并置换，若鱼饵被吃碰杠胡，则跳过你的摸牌阶段`,
+`123【幸运大钻轮】一个杠钱就能抽大奔！其他玩家在回合内可以给你一个杠钱玩幸运钻！钻！钻！`,﻿
+`124【黄皮耗子】你是一只会放电的黄皮耗子，你对其他玩家喊出“你麻痹”，则对其放电，被击中玩家摸到的单色牌不能入手牌，麻痹回合摇骰子骰子决定，同一玩家不能被连续电击，场上只能同时存在两名麻痹玩家`,
+`125【熊猫】你会收集竹子（条子，幺鸡除外，按照数字算竹节），结算时收集40节以上的竹子可开起聚会，并把竹子分给大家（比例自定），按照5节竹子一个杠钱找大家收费，不满5节不收费，竹子可以在后续回合按照购入价抵消结算金额`,
+`126【股神】开局可以选一名玩家购入股票，你二人打出的牌红色算涨，绿色算跌，该牌被吃碰杠走无效，股票涨时，按照一个杠钱/张由其给你，反之由你给该玩家，10张触发涨/跌停`,
+`127【老衲】终一生度世人与终一世度一人，开局立手13份因果，你放弃回合投身轮回，由李姓玩家额外继承你的回合，且每一世（回合）你要给其余两位玩家一张手牌了结因果，第10世时你洗净因果立地成佛，算胡甩龙，若李姓玩家胜利，则其按照一个回合一个杠钱向你还愿`,
+`128【杨总的快乐生活】杨总产业多，开局时杨姓玩家可在牌堆10摞后的任意位置翻4张牌作为产业，拿到该牌的玩家给你与杨姓玩家一个暗杠钱，杨姓玩家摸到产业牌，后续产业收费多加一个暗杠钱（杨姓玩家不能使用本技能）`
+];
+
+// ============ 每个分页独立的状态 ============
+const pages = ['east', 'south', 'west', 'north'];
+const pageState = {};
+
+pages.forEach(key => {
+  pageState[key] = {
+    cardPool: [],
+    drawnCards: [],
+    isCooldown: false,
+    timer: null
+  };
+});
+
+function initCards(key) {
+  const state = pageState[key];
+  state.cardPool = [...cardData];
+  for (let i = state.cardPool.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [state.cardPool[i], state.cardPool[j]] = [state.cardPool[j], state.cardPool[i]];
+  }
+  state.drawnCards = [];
+  updateCardProgress(key);
+}
+
+function drawCard(key) {
+  const state = pageState[key];
+  if (state.isCooldown) return;
+  if (state.cardPool.length === 0) {
+    initCards(key);
+  }
+  const card = state.cardPool.pop();
+  state.drawnCards.push(card);
+
+  const match = card.match(/^(\d+)【(.+?)】(.*)/);
+  if (match) {
+    document.getElementById('cardNum_' + key).textContent = `第 ${match[1]} 条`;
+    document.getElementById('cardText_' + key).innerHTML = `<span class="title">【${match[2]}】</span>${match[3]}`;
+  } else {
+    document.getElementById('cardNum_' + key).textContent = `第 ${state.drawnCards.length} 条`;
+    document.getElementById('cardText_' + key).textContent = card;
+  }
+
+  updateCardProgress(key);
+  startCooldown(key);
+}
+
+function updateCardProgress(key) {
+  const state = pageState[key];
+  const total = cardData.length;
+  const drawn = state.drawnCards.length;
+  document.getElementById('cardProgress_' + key).textContent = `${drawn} / ${total}`;
+  document.getElementById('cardFill_' + key).style.width = `${(drawn / total * 100).toFixed(1)}%`;
+}
+
+function startCooldown(key) {
+  const state = pageState[key];
+  state.isCooldown = true;
+  const btn = document.getElementById('drawBtn_' + key);
+  btn.disabled = true;
+  btn.classList.add('cooldown');
+  let seconds = 5;
+  btn.textContent = `⏳ ${seconds}s 后可用`;
+  if (state.timer) clearInterval(state.timer);
+  state.timer = setInterval(() => {
+    seconds--;
+    if (seconds <= 0) {
+      clearInterval(state.timer);
+      state.timer = null;
+      btn.disabled = false;
+      btn.classList.remove('cooldown');
+      btn.textContent = '🎯 抽取词条';
+      state.isCooldown = false;
+    } else {
+      btn.textContent = `⏳ ${seconds}s 后可用`;
+    }
+  }, 1000);
+}
+
+function resetCards(key) {
+  const state = pageState[key];
+  initCards(key);
+  document.getElementById('cardNum_' + key).textContent = '准备开始';
+  document.getElementById('cardText_' + key).textContent = '点击下方按钮抽取词条';
+  const btn = document.getElementById('drawBtn_' + key);
+  btn.disabled = false;
+  btn.classList.remove('cooldown');
+  btn.textContent = '🎯 抽取词条';
+  state.isCooldown = false;
+  if (state.timer) {
+    clearInterval(state.timer);
+    state.timer = null;
+  }
+}
+
+// 初始化所有分页
+pages.forEach(key => initCards(key));
+</script>
+</body>
+</html>

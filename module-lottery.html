@@ -1,0 +1,642 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🎰 摇奖系统</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html {
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  body {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    background: radial-gradient(ellipse at center, #1a1a2e 0%, #0f0f1a 60%, #050510 100%);
+    font-family: 'Microsoft YaHei', 'PingFang SC', sans-serif;
+    overflow-y: auto;
+    overflow-x: hidden;
+    position: relative;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* 背景粒子 */
+  .particles {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    pointer-events: none;
+    z-index: 0;
+    touch-action: none;
+  }
+  .particle {
+    position: absolute;
+    width: 4px; height: 4px;
+    background: rgba(255, 200, 50, 0.6);
+    border-radius: 50%;
+    animation: float-up linear infinite;
+  }
+  @keyframes float-up {
+    0%   { transform: translateY(100vh) scale(0); opacity: 0; }
+    10%  { opacity: 1; }
+    90%  { opacity: 1; }
+    100% { transform: translateY(-10vh) scale(1); opacity: 0; }
+  }
+
+  .container {
+    position: relative;
+    z-index: 1;
+    text-align: center;
+    padding: 40px 20px;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+
+  h1 {
+    font-size: 52px;
+    background: linear-gradient(135deg, #ffd700, #ff8c00, #ffd700);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    text-shadow: none;
+    margin-bottom: 8px;
+    letter-spacing: 6px;
+    animation: title-glow 2s ease-in-out infinite alternate;
+  }
+  @keyframes title-glow {
+    from { filter: drop-shadow(0 0 10px rgba(255,215,0,0.3)); }
+    to   { filter: drop-shadow(0 0 25px rgba(255,215,0,0.7)); }
+  }
+
+  .subtitle {
+    color: rgba(255,255,255,0.45);
+    font-size: 14px;
+    margin-bottom: 40px;
+    letter-spacing: 3px;
+  }
+
+  /* 号码区域 */
+  .slots-wrapper {
+    display: flex;
+    gap: 22px;
+    justify-content: center;
+    align-items: center;
+    margin-bottom: 50px;
+    flex-wrap: wrap;
+  }
+
+  .slot-group-label {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+  }
+  .group-label {
+    font-size: 12px;
+    color: rgba(255,255,255,0.35);
+    letter-spacing: 2px;
+    margin-bottom: -4px;
+  }
+
+  .slot {
+    width: 96px;
+    height: 120px;
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 44px;
+    font-weight: 900;
+    color: #fff;
+    position: relative;
+    background: linear-gradient(145deg, #2a2a4a, #1a1a30);
+    border: 2px solid rgba(255,215,0,0.15);
+    box-shadow:
+      inset 0 2px 10px rgba(0,0,0,0.5),
+      0 4px 15px rgba(0,0,0,0.3);
+    transition: all 0.3s;
+    overflow: hidden;
+  }
+
+  /* 滚动时的内部文字动画 */
+  .slot .rolling-text {
+    animation: none;
+  }
+  .slot.rolling .rolling-text {
+    animation: slot-scroll 0.08s linear infinite;
+  }
+  @keyframes slot-scroll {
+    0%   { transform: translateY(0); }
+    100% { transform: translateY(-30px); }
+  }
+
+  /* 槽位顶部高光 */
+  .slot::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 40%;
+    background: linear-gradient(to bottom, rgba(255,255,255,0.06), transparent);
+    border-radius: 14px 14px 0 0;
+    pointer-events: none;
+  }
+
+  /* 第5个槽位特殊颜色 */
+  .slot.slot-5 {
+    border-color: rgba(0,200,255,0.25);
+    background: linear-gradient(145deg, #1a3040, #102030);
+  }
+
+  /* 滚动中 */
+  .slot.rolling {
+    border-color: rgba(255,215,0,0.7);
+    box-shadow:
+      inset 0 2px 10px rgba(0,0,0,0.5),
+      0 0 25px rgba(255,215,0,0.35),
+      0 0 50px rgba(255,140,0,0.15);
+  }
+  .slot.slot-5.rolling {
+    border-color: rgba(0,200,255,0.7);
+    box-shadow:
+      inset 0 2px 10px rgba(0,0,0,0.5),
+      0 0 25px rgba(0,200,255,0.35);
+  }
+
+  /* 结果确定 */
+  .slot.done {
+    border-color: rgba(255,215,0,0.9);
+    box-shadow:
+      inset 0 2px 10px rgba(0,0,0,0.5),
+      0 0 20px rgba(255,215,0,0.25);
+    transform: scale(1.02);
+  }
+  .slot.slot-5.done {
+    border-color: rgba(0,200,255,0.9);
+    box-shadow:
+      inset 0 2px 10px rgba(0,0,0,0.5),
+      0 0 20px rgba(0,200,255,0.25);
+  }
+
+  /* 标签（中/发/白 / 东/南/西/北） */
+  .tag {
+    position: absolute;
+    bottom: 6px;
+    font-size: 10px;
+    color: rgba(255,255,255,0.25);
+    letter-spacing: 1px;
+  }
+
+  /* 分隔符 */
+  .separator {
+    font-size: 36px;
+    color: rgba(255,215,0,0.3);
+    margin: 0 4px;
+    align-self: center;
+    padding-bottom: 20px;
+  }
+
+  /* 按钮 */
+  .btn-group {
+    display: flex;
+    gap: 20px;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+
+  .btn {
+    padding: 16px 52px;
+    font-size: 20px;
+    font-weight: 700;
+    border: none;
+    border-radius: 50px;
+    cursor: pointer;
+    letter-spacing: 4px;
+    transition: all 0.3s;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .btn-draw {
+    background: linear-gradient(135deg, #ffd700, #ff8c00);
+    color: #1a1a2e;
+    box-shadow: 0 4px 20px rgba(255,165,0,0.35);
+  }
+  .btn-draw:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 30px rgba(255,165,0,0.55);
+  }
+  .btn-draw:active:not(:disabled) { transform: translateY(0); }
+  .btn-draw:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .btn-reset {
+    background: rgba(255,255,255,0.06);
+    color: rgba(255,255,255,0.6);
+    border: 1px solid rgba(255,255,255,0.15);
+  }
+  .btn-reset:hover {
+    background: rgba(255,255,255,0.12);
+    color: #fff;
+  }
+
+  /* 历史记录 */
+  .history-section {
+    margin-top: 45px;
+    width: 100%;
+    max-width: 600px;
+  }
+  .history-title {
+    font-size: 13px;
+    color: rgba(255,255,255,0.3);
+    margin-bottom: 12px;
+    letter-spacing: 3px;
+  }
+  .history-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: 180px;
+    overflow-y: auto;
+    padding: 0 10px;
+  }
+  .history-list::-webkit-scrollbar { width: 4px; }
+  .history-list::-webkit-scrollbar-thumb { background: rgba(255,215,0,0.2); border-radius: 2px; }
+
+  .history-item {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 8px 16px;
+    background: rgba(255,255,255,0.03);
+    border-radius: 10px;
+    font-size: 18px;
+    color: rgba(255,255,255,0.7);
+    animation: fade-in 0.4s ease;
+  }
+  @keyframes fade-in {
+    from { opacity: 0; transform: translateY(-10px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .history-item .h-num {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px; height: 32px;
+    border-radius: 8px;
+    background: rgba(255,215,0,0.08);
+    font-weight: 700;
+    font-size: 15px;
+  }
+  .history-item .h-num.h5 {
+    background: rgba(0,200,255,0.08);
+  }
+
+  /* 中奖弹窗 */
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    background: rgba(0,0,0,0.7);
+    z-index: 100;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(6px);
+  }
+  .modal-overlay.show { display: flex; }
+  .modal {
+    background: linear-gradient(145deg, #2a2a4a, #1a1a30);
+    border: 2px solid rgba(255,215,0,0.4);
+    border-radius: 24px;
+    padding: 50px 60px;
+    text-align: center;
+    animation: pop-in 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    box-shadow: 0 0 60px rgba(255,215,0,0.15);
+  }
+  @keyframes pop-in {
+    from { transform: scale(0.5); opacity: 0; }
+    to   { transform: scale(1); opacity: 1; }
+  }
+  .modal h2 {
+    font-size: 36px;
+    background: linear-gradient(135deg, #ffd700, #ff8c00);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin-bottom: 20px;
+  }
+  .modal .result-display {
+    font-size: 48px;
+    font-weight: 900;
+    color: #fff;
+    letter-spacing: 12px;
+    margin-bottom: 30px;
+    text-shadow: 0 0 20px rgba(255,215,0,0.4);
+  }
+  .modal .btn-close {
+    padding: 10px 40px;
+    border: 1px solid rgba(255,255,255,0.2);
+    background: rgba(255,255,255,0.05);
+    color: #fff;
+    border-radius: 30px;
+    cursor: pointer;
+    font-size: 15px;
+    transition: all 0.3s;
+  }
+  .modal .btn-close:hover { background: rgba(255,255,255,0.15); }
+
+  /* 彩带 */
+  .confetti {
+    position: fixed;
+    width: 10px; height: 10px;
+    z-index: 101;
+    pointer-events: none;
+    opacity: 0;
+  }
+
+  /* 底部提示 */
+  .footer-tip {
+    margin-top: 30px;
+    font-size: 12px;
+    color: rgba(255,255,255,0.2);
+    letter-spacing: 2px;
+  }
+
+  /* 响应式 */
+  @media (max-width: 600px) {
+    h1 { font-size: 30px; letter-spacing: 3px; }
+    .subtitle { font-size: 11px; margin-bottom: 25px; }
+    .container { padding: 25px 12px; justify-content: flex-start; }
+    .slots-wrapper { gap: 10px; flex-direction: column; }
+    .slot-group-label { width: 100%; }
+    .slot-group-label > div[style*="display:flex"] {
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 8px !important;
+    }
+    .slot { width: 60px; height: 76px; font-size: 26px; border-radius: 12px; }
+    .slot .tag { font-size: 8px; bottom: 3px; }
+    .separator { display: none; }
+    .btn-group { flex-direction: column; gap: 12px; width: 100%; max-width: 280px; }
+    .btn { padding: 14px 30px; font-size: 16px; width: 100%; }
+    .modal { padding: 30px 20px; max-width: 90vw; }
+    .modal .result-display { font-size: 28px; letter-spacing: 6px; }
+    .history-section { max-width: 100%; }
+    .history-item { font-size: 15px; padding: 6px 10px; }
+    .history-item .h-num { width: 28px; height: 28px; font-size: 13px; }
+  }
+
+  /* 超小屏补充 */
+  @media (max-width: 380px) {
+    .slot { width: 52px; height: 68px; font-size: 22px; }
+    h1 { font-size: 26px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="particles" id="particles"></div>
+
+<div class="container">
+  <h1>🎰 摇 奖 系 统</h1>
+  <p class="subtitle">MAHJONG  LUCKY  DRAW</p>
+
+  <!-- 号码槽 -->
+  <div class="slots-wrapper">
+    <!-- 前4个：中/发/白 -->
+    <div class="slot-group-label">
+      <span class="group-label">第 1 ~ 4 位</span>
+      <div style="display:flex; gap:14px;">
+        <div class="slot" id="slot1" data-index="1"><span class="rolling-text">?</span><span class="tag">中·发·白</span></div>
+        <div class="slot" id="slot2" data-index="2"><span class="rolling-text">?</span><span class="tag">中·发·白</span></div>
+        <div class="slot" id="slot3" data-index="3"><span class="rolling-text">?</span><span class="tag">中·发·白</span></div>
+        <div class="slot" id="slot4" data-index="4"><span class="rolling-text">?</span><span class="tag">中·发·白</span></div>
+      </div>
+    </div>
+
+    <div class="separator">|</div>
+
+    <!-- 第5个：东/南/西/北 -->
+    <div class="slot-group-label">
+      <span class="group-label">第 5 位</span>
+      <div style="display:flex; gap:14px;">
+        <div class="slot slot-5" id="slot5" data-index="5"><span class="rolling-text">?</span><span class="tag">东·南·西·北</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 按钮 -->
+  <div class="btn-group">
+    <button class="btn btn-draw" id="btnDraw" onclick="startDraw()">🎲 开始摇奖</button>
+    <button class="btn btn-reset" id="btnReset" onclick="resetSlots()">🔄 重置</button>
+  </div>
+
+  <!-- 历史记录 -->
+  <div class="history-section">
+    <p class="history-title">📜 历史记录</p>
+    <div class="history-list" id="historyList">
+      <p style="color:rgba(255,255,255,0.15); font-size:13px; text-align:center; padding:20px 0;">暂无记录，快来摇第一个奖吧！</p>
+    </div>
+  </div>
+
+  <p class="footer-tip">点击「开始摇奖」随机抽取您的幸运号码</p>
+</div>
+
+<!-- 中奖弹窗 -->
+<div class="modal-overlay" id="modal">
+  <div class="modal">
+    <h2>🎉 恭喜中奖 🎉</h2>
+    <div class="result-display" id="modalResult"></div>
+    <button class="btn-close" onclick="closeModal()">我知道了</button>
+  </div>
+</div>
+
+<script>
+// ========== 配置 ==========
+const POOL_1234 = ['中', '发', '白'];
+const POOL_5    = ['东', '南', '西', '北'];
+
+// 每个槽位的候选池
+function getPool(index) {
+  return (index <= 4) ? POOL_1234 : POOL_5;
+}
+
+// 历史记录
+let history = [];
+
+// ========== 生成背景粒子 ==========
+(function createParticles() {
+  const container = document.getElementById('particles');
+  for (let i = 0; i < 30; i++) {
+    const p = document.createElement('div');
+    p.className = 'particle';
+    p.style.left = Math.random() * 100 + '%';
+    p.style.animationDuration = (4 + Math.random() * 6) + 's';
+    p.style.animationDelay = (Math.random() * 8) + 's';
+    p.style.width = p.style.height = (2 + Math.random() * 4) + 'px';
+    container.appendChild(p);
+  }
+})();
+
+// ========== 工具：洗牌 ==========
+function shuffle(arr) {
+  const a = arr.slice();
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+// ========== 滚动动画：快速切换文字 ==========
+function startRolling(slotEl, pool) {
+  slotEl.classList.remove('done');
+  slotEl.classList.add('rolling');
+  const textSpan = slotEl.querySelector('.rolling-text');
+  // 每80ms换一个候选字
+  const interval = setInterval(() => {
+    textSpan.textContent = pool[Math.floor(Math.random() * pool.length)];
+  }, 80);
+  return interval;
+}
+
+// ========== 停止滚动 ==========
+function stopRolling(slotEl, interval, finalChar) {
+  clearInterval(interval);
+  slotEl.classList.remove('rolling');
+  slotEl.classList.add('done');
+  slotEl.querySelector('.rolling-text').textContent = finalChar;
+}
+
+// ========== 主流程 ==========
+async function startDraw() {
+  const btn = document.getElementById('btnDraw');
+  btn.disabled = true;
+
+  const slots = [
+    document.getElementById('slot1'),
+    document.getElementById('slot2'),
+    document.getElementById('slot3'),
+    document.getElementById('slot4'),
+    document.getElementById('slot5'),
+  ];
+
+  // 为每位生成最终结果
+  const results = slots.map((s, i) => {
+    const pool = getPool(i + 1);
+    return pool[Math.floor(Math.random() * pool.length)];
+  });
+
+  // 依次启动滚动
+  const intervals = slots.map((s, i) => startRolling(s, getPool(i + 1)));
+
+  // 依次停止（制造逐个揭晓的效果）
+  // 前4个依次停下，第5个最后停下
+  const stopDelays = [1200, 1800, 2400, 3000, 4000]; // ms
+
+  for (let i = 0; i < 5; i++) {
+    await sleep(stopDelays[i]);
+    stopRolling(slots[i], intervals[i], results[i]);
+    // 每揭晓一个播放音效感（视觉反馈）
+    slots[i].style.transform = 'scale(1.12)';
+    setTimeout(() => slots[i].style.transform = '', 200);
+  }
+
+  // 全部揭晓后
+  const finalResult = results.join('');
+  addHistory(results);
+  showModal(finalResult);
+  launchConfetti();
+
+  btn.disabled = false;
+}
+
+// ========== 重置 ==========
+function resetSlots() {
+  for (let i = 1; i <= 5; i++) {
+    const s = document.getElementById('slot' + i);
+    s.classList.remove('rolling', 'done');
+    s.querySelector('.rolling-text').textContent = '?';
+  }
+  closeModal();
+}
+
+// ========== 历史记录 ==========
+function addHistory(results) {
+  const display = results.map((r, i) => {
+    const cls = i === 4 ? 'h5' : '';
+    return `<span class="h-num ${cls}">${r}</span>`;
+  }).join('');
+
+  const item = document.createElement('div');
+  item.className = 'history-item';
+  const time = new Date().toLocaleTimeString('zh-CN', { hour12: false });
+  item.innerHTML = `<span style="color:rgba(255,255,255,0.3);font-size:12px;margin-right:8px;">${time}</span>${display}`;
+  document.getElementById('historyList').prepend(item);
+
+  // 移除"暂无记录"提示
+  const emptyTip = document.querySelector('.history-list p');
+  if (emptyTip) emptyTip.remove();
+
+  history.push(results.join(''));
+}
+
+// ========== 弹窗 ==========
+function showModal(result) {
+  document.getElementById('modalResult').textContent = result;
+  document.getElementById('modal').classList.add('show');
+}
+function closeModal() {
+  document.getElementById('modal').classList.remove('show');
+}
+
+// ========== 彩带特效 ==========
+function launchConfetti() {
+  const colors = ['#ffd700','#ff8c00','#ff4466','#00ccff','#66ff66','#ff66cc','#ffffff'];
+  for (let i = 0; i < 60; i++) {
+    const c = document.createElement('div');
+    c.className = 'confetti';
+    c.style.left = Math.random() * 100 + '%';
+    c.style.top  = '-20px';
+    c.style.background = colors[Math.floor(Math.random() * colors.length)];
+    c.style.borderRadius = Math.random() > 0.5 ? '50%' : '2px';
+    c.style.width  = (6 + Math.random() * 8) + 'px';
+    c.style.height = (6 + Math.random() * 8) + 'px';
+    c.style.opacity = '1';
+    document.body.appendChild(c);
+
+    const x = (Math.random() - 0.5) * 300;
+    const y = window.innerHeight + 40;
+    const rot = Math.random() * 720;
+    const dur = 1500 + Math.random() * 1500;
+
+    c.animate([
+      { transform: `translate(0,0) rotate(0deg)`, opacity: 1 },
+      { transform: `translate(${x}px, ${y}px) rotate(${rot}deg)`, opacity: 0 }
+    ], { duration: dur, easing: 'cubic-bezier(.25,.46,.45,.94)' });
+
+    setTimeout(() => c.remove(), dur + 100);
+  }
+}
+
+// ========== 辅助 ==========
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+// 键盘空格键也能触发
+document.addEventListener('keydown', (e) => {
+  if (e.code === 'Space') {
+    e.preventDefault();
+    const btn = document.getElementById('btnDraw');
+    if (!btn.disabled) startDraw();
+  }
+});
+</script>
+</body>
+</html>
